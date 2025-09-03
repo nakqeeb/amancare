@@ -75,6 +75,14 @@ public class AuthService {
         );
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
+        // CHECK IF ACCOUNT IS ACTIVE
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(() -> new RuntimeException("المستخدم غير موجود"));
+
+        if (!user.getIsActive()) {
+            throw new RuntimeException("لم يتم تفعيل حسابك بعد. يرجى التحقق من بريدك الإلكتروني");
+        }
         String jwt = tokenProvider.generateToken(authentication);
         String refreshToken = tokenProvider.generateRefreshToken(
                 ((UserPrincipal) authentication.getPrincipal()).getId()

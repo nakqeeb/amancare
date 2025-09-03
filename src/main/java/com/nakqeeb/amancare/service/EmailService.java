@@ -112,4 +112,61 @@ public class EmailService {
                 variables
         );
     }
+
+    /**
+     * إرسال بريد تأكيد البريد الإلكتروني
+     */
+    public void sendEmailVerificationEmail(String email, String token, String userName, String clinicName) {
+        String verificationUrl = frontendUrl + "/auth/verify-email?token=" + token;
+
+        Map<String, Object> variables = Map.of(
+                "userName", userName,
+                "clinicName", clinicName,
+                "verificationUrl", verificationUrl,
+                "expiryTime", "24 ساعة"
+        );
+
+        sendHtmlEmail(
+                email,
+                "تأكيد البريد الإلكتروني - نظام أمان كير",
+                "email-verification",
+                variables
+        );
+    }
+
+    /**
+     * إرسال تأكيد تفعيل الحساب
+     */
+    public void sendAccountActivatedEmail(String email, String userName) {
+        Map<String, Object> variables = Map.of(
+                "userName", userName
+        );
+
+        sendHtmlEmail(
+                email,
+                "تم تفعيل حسابك بنجاح - نظام أمان كير",
+                "account-activated",
+                variables
+        );
+    }
+
+    /**
+     * إرسال بريد إعادة إرسال رابط التفعيل
+     */
+    public void sendResendVerificationEmail(String email, String token, String userName) {
+        String verificationUrl = frontendUrl + "/auth/verify-email?token=" + token;
+
+        Map<String, Object> variables = Map.of(
+                "userName", userName,
+                "verificationUrl", verificationUrl,
+                "expiryTime", "24 ساعة"
+        );
+
+        sendHtmlEmail(
+                email,
+                "إعادة إرسال رابط تأكيد البريد الإلكتروني - نظام أمان كير",
+                "resend-email-verification",
+                variables
+        );
+    }
 }

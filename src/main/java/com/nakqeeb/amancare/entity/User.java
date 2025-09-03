@@ -63,7 +63,7 @@ public class User extends BaseEntity {
     private String specialization;
 
     @Column(name = "is_active")
-    private Boolean isActive = true;
+    private Boolean isActive = false;
 
     // Constructors
     public User() {}

@@ -1,0 +1,48 @@
+<!--EMAIL TEMPLATE 2: ACCOUNT ACTIVATED-->
+<!--File: src/main/resources/templates/account-activated.html-->
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>تم تفعيل حسابك</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction: rtl; }
+        .container { max-width: 600px; margin: 20px auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); color: white; padding: 30px; text-align: center; }
+        .content { padding: 40px 30px; }
+        .success-info { background: #f0fff4; border: 1px solid #9ae6b4; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center; }
+        .footer { background: #f8f9fa; padding: 30px; text-align: center; color: #666; border-top: 1px solid #e9ecef; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div style="font-size: 48px; margin-bottom: 10px;">✅</div>
+        <h1>تم تفعيل حسابك بنجاح</h1>
+    </div>
+
+    <div class="content">
+        <p>مرحباً <span th:text="${userName}">المستخدم</span>،</p>
+
+        <div class="success-info">
+            <h3>🎉 مبروك! تم تفعيل حسابك بنجاح</h3>
+            <p>يمكنك الآن تسجيل الدخول والاستفادة من جميع خدمات نظام أمان كير.</p>
+        </div>
+
+        <p><strong>الخطوات التالية:</strong></p>
+        <ul>
+            <li>تسجيل الدخول إلى حسابك</li>
+            <li>إعداد ملف العيادة</li>
+            <li>إضافة أعضاء الفريق</li>
+            <li>بدء إدارة المرضى والمواعيد</li>
+        </ul>
+    </div>
+
+    <div class="footer">
+        <p><strong>نظام أمان كير</strong></p>
+        <p>© 2024 أمان كير. جميع الحقوق محفوظة.</p>
+    </div>
+</div>
+</body>
+</html>

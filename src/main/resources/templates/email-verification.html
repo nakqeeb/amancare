@@ -1,0 +1,115 @@
+<!--EMAIL TEMPLATE 1: EMAIL VERIFICATION-->
+<!--File: src/main/resources/templates/email-verification.html-->
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تأكيد البريد الإلكتروني</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            direction: rtl;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: white;
+            padding: 0;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header .logo { font-size: 48px; margin-bottom: 10px; }
+        .header h1 { margin: 0; font-size: 28px; font-weight: 600; }
+        .content { padding: 40px 30px; }
+        .greeting { font-size: 18px; color: #667eea; margin-bottom: 20px; font-weight: 600; }
+        .message { font-size: 16px; margin-bottom: 30px; line-height: 1.8; color: #555; }
+        .verify-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .alternative-link {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 2px dashed #ddd;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            border-top: 1px solid #e9ecef;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="logo">🏥</div>
+        <h1>نظام أمان كير</h1>
+    </div>
+
+    <div class="content">
+        <div class="greeting">
+            مرحباً <span th:text="${userName}">المستخدم</span>،
+        </div>
+
+        <div class="message">
+            <p>مرحباً بك في <strong th:text="${clinicName}">العيادة</strong>!</p>
+            <p>لإكمال تسجيلك في نظام أمان كير، يرجى تأكيد بريدك الإلكتروني بالنقر على الزر أدناه:</p>
+        </div>
+
+        <div style="text-align: center;">
+            <a th:href="${verificationUrl}" class="verify-button">
+                ✅ تأكيد البريد الإلكتروني
+            </a>
+        </div>
+
+        <div class="alternative-link">
+            <p><strong>إذا لم يعمل الزر أعلاه، يمكنك نسخ الرابط التالي:</strong></p>
+            <code th:text="${verificationUrl}">VERIFICATION_URL_HERE</code>
+        </div>
+
+        <div class="warning">
+            <p><strong>مهم:</strong> هذا الرابط صالح لمدة <span th:text="${expiryTime}">24 ساعة</span> فقط.</p>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p><strong>نظام أمان كير</strong></p>
+        <p>© 2024 أمان كير. جميع الحقوق محفوظة.</p>
+    </div>
+</div>
+</body>
+</html>

@@ -3,6 +3,7 @@
 // ===================================================================
 package com.nakqeeb.amancare.scheduler;
 
+import com.nakqeeb.amancare.service.EmailVerificationService;
 import com.nakqeeb.amancare.service.PasswordResetService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
 public class TokenCleanupScheduler {
 
     private final PasswordResetService passwordResetService;
+    private final EmailVerificationService emailVerificationService;
 
     /**
      * تنظيف الرموز المنتهية الصلاحية كل ساعة
@@ -23,7 +25,8 @@ public class TokenCleanupScheduler {
     public void cleanupExpiredTokens() {
         try {
             passwordResetService.cleanupExpiredTokens();
-            log.debug("تم تنظيف رموز إعادة تعيين كلمة المرور المنتهية الصلاحية");
+            emailVerificationService.cleanupExpiredTokens();
+            log.debug("تم تنظيف الرموز المنتهية الصلاحية");
         } catch (Exception e) {
             log.error("خطأ في تنظيف الرموز المنتهية الصلاحية: {}", e.getMessage());
         }
