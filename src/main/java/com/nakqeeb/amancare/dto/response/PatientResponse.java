@@ -66,7 +66,7 @@ public class PatientResponse {
     private String notes;
 
     @Schema(description = "حالة النشاط", example = "true")
-    private boolean active;
+    private Boolean isActive;
 
     @Schema(description = "تاريخ الإنشاء", example = "2024-01-15T10:30:00")
     private LocalDateTime createdAt;
@@ -99,7 +99,7 @@ public class PatientResponse {
         response.setAllergies(patient.getAllergies());
         response.setChronicDiseases(patient.getChronicDiseases());
         response.setNotes(patient.getNotes());
-        response.setActive(patient.getIsActive());
+        response.setIsActive(patient.getIsActive());
         response.setCreatedAt(patient.getCreatedAt());
         response.setUpdatedAt(patient.getUpdatedAt());
         return response;
@@ -157,8 +157,13 @@ public class PatientResponse {
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
 
-    public boolean isActive() { return active; }
-    public void setActive(boolean active) { this.active = active; }
+    public Boolean isActive() {
+        return isActive;
+    }
+
+    public void setIsActive(Boolean isActive) {
+        this.isActive = isActive;
+    }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

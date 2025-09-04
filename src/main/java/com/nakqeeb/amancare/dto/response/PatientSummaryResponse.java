@@ -38,7 +38,7 @@ public class PatientSummaryResponse {
     private LocalDateTime lastVisit;
 
     @Schema(description = "حالة النشاط", example = "true")
-    private boolean active;
+    private Boolean isActive;
 
     // Constructors
     public PatientSummaryResponse() {}
@@ -54,7 +54,7 @@ public class PatientSummaryResponse {
         summary.setAge(patient.getAge());
         summary.setGender(patient.getGender());
         summary.setPhone(patient.getPhone());
-        summary.setActive(patient.getIsActive());
+        summary.setIsActive(patient.getIsActive());
         summary.setBloodType(patient.getBloodType());
         // آخر زيارة يمكن استخراجها من Medical Records أو Appointments
         return summary;
@@ -90,6 +90,11 @@ public class PatientSummaryResponse {
     public LocalDateTime getLastVisit() { return lastVisit; }
     public void setLastVisit(LocalDateTime lastVisit) { this.lastVisit = lastVisit; }
 
-    public boolean isActive() { return active; }
-    public void setActive(boolean active) { this.active = active; }
+    public Boolean getIsActive() {
+        return isActive;
+    }
+
+    public void setIsActive(Boolean isActive) {
+        this.isActive = isActive;
+    }
 }
