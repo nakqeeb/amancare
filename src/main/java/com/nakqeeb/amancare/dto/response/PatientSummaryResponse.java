@@ -1,5 +1,6 @@
 package com.nakqeeb.amancare.dto.response;
 
+import com.nakqeeb.amancare.entity.BloodType;
 import com.nakqeeb.amancare.entity.Gender;
 import com.nakqeeb.amancare.entity.Patient;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -30,6 +31,9 @@ public class PatientSummaryResponse {
     @Schema(description = "رقم الهاتف", example = "771234567")
     private String phone;
 
+    @Schema(description = "فصيلة الدم", example = "O_POSITIVE")
+    private BloodType bloodType;
+
     @Schema(description = "آخر زيارة", example = "2024-01-10T09:00:00")
     private LocalDateTime lastVisit;
 
@@ -51,6 +55,7 @@ public class PatientSummaryResponse {
         summary.setGender(patient.getGender());
         summary.setPhone(patient.getPhone());
         summary.setActive(patient.getIsActive());
+        summary.setBloodType(patient.getBloodType());
         // آخر زيارة يمكن استخراجها من Medical Records أو Appointments
         return summary;
     }
@@ -73,6 +78,14 @@ public class PatientSummaryResponse {
 
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+
+    public BloodType getBloodType() {
+        return bloodType;
+    }
+
+    public void setBloodType(BloodType bloodType) {
+        this.bloodType = bloodType;
+    }
 
     public LocalDateTime getLastVisit() { return lastVisit; }
     public void setLastVisit(LocalDateTime lastVisit) { this.lastVisit = lastVisit; }

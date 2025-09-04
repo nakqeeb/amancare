@@ -16,6 +16,7 @@ import com.nakqeeb.amancare.exception.ResourceNotFoundException;
 import com.nakqeeb.amancare.exception.BadRequestException;
 import com.nakqeeb.amancare.repository.ClinicRepository;
 import com.nakqeeb.amancare.repository.PatientRepository;
+import com.nakqeeb.amancare.util.DateTimeUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -26,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -245,6 +247,20 @@ public class PatientService {
     /**
      * الحصول على إحصائيات المرضى
      */
+//    @Transactional(readOnly = true)
+//    public PatientStatistics getPatientStatistics(Long clinicId) {
+//        Clinic clinic = clinicRepository.findById(clinicId)
+//                .orElseThrow(() -> new ResourceNotFoundException("العيادة غير موجودة"));
+//
+//        long totalPatients = patientRepository.countActivePatientsByClinic(clinic);
+//
+//        LocalDate oneMonthAgo = LocalDate.now().minusMonths(1);
+//        long newPatientsThisMonth = patientRepository.countPatientsCreatedBetween(
+//                clinic, oneMonthAgo, LocalDate.now()
+//        );
+//
+//        return new PatientStatistics(totalPatients, newPatientsThisMonth);
+//    }
     @Transactional(readOnly = true)
     public PatientStatistics getPatientStatistics(Long clinicId) {
         Clinic clinic = clinicRepository.findById(clinicId)
@@ -252,9 +268,15 @@ public class PatientService {
 
         long totalPatients = patientRepository.countActivePatientsByClinic(clinic);
 
+        // Convert LocalDate to LocalDateTime range for proper comparison
         LocalDate oneMonthAgo = LocalDate.now().minusMonths(1);
+        LocalDate today = LocalDate.now();
+
+        LocalDateTime startDateTime = DateTimeUtil.getStartOfDay(oneMonthAgo);
+        LocalDateTime endDateTime = DateTimeUtil.getEndOfDay(today);
+
         long newPatientsThisMonth = patientRepository.countPatientsCreatedBetween(
-                clinic, oneMonthAgo, LocalDate.now()
+                clinic, startDateTime, endDateTime
         );
 
         return new PatientStatistics(totalPatients, newPatientsThisMonth);

@@ -14,6 +14,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -107,9 +108,14 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
     /**
      * المرضى الذين تم إنشاؤهم خلال فترة
      */
+//    @Query("SELECT COUNT(p) FROM Patient p WHERE p.clinic = :clinic AND " +
+//            "p.createdAt BETWEEN :startDate AND :endDate")
+//    long countPatientsCreatedBetween(@Param("clinic") Clinic clinic,
+//                                     @Param("startDate") LocalDate startDate,
+//                                     @Param("endDate") LocalDate endDate);
     @Query("SELECT COUNT(p) FROM Patient p WHERE p.clinic = :clinic AND " +
-            "p.createdAt BETWEEN :startDate AND :endDate")
+            "p.createdAt >= :startDateTime AND p.createdAt <= :endDateTime")
     long countPatientsCreatedBetween(@Param("clinic") Clinic clinic,
-                                     @Param("startDate") LocalDate startDate,
-                                     @Param("endDate") LocalDate endDate);
+                                     @Param("startDateTime") LocalDateTime startDateTime,
+                                     @Param("endDateTime") LocalDateTime endDateTime);
 }
