@@ -59,6 +59,16 @@ public interface UserRepository extends JpaRepository<User, Long> {
      */
     List<User> findByClinicAndRoleAndIsActiveTrue(Clinic clinic, UserRole role);
 
+    // Add only this method to your existing UserRepository interface:
+    List<User> findByClinicIdAndRoleAndIsActiveTrue(Long clinicId, UserRole role);
+
+    /**
+     * الحصول على الأطباء مع تحميل بيانات العيادة (حل مشكلة Lazy Loading)
+     * Get doctors with clinic data eagerly loaded (solves lazy loading issue)
+     */
+    @Query("SELECT u FROM User u JOIN FETCH u.clinic WHERE u.clinic.id = :clinicId AND u.role = 'DOCTOR' AND u.isActive = true ORDER BY u.firstName, u.lastName")
+    List<User> findDoctorsWithClinicByClinicId(@Param("clinicId") Long clinicId);
+
     /**
      * البحث عن الأطباء في العيادة
      */

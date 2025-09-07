@@ -7,6 +7,8 @@ import com.nakqeeb.amancare.entity.User;
 import com.nakqeeb.amancare.entity.UserRole;
 import com.nakqeeb.amancare.security.UserPrincipal;
 
+import java.time.LocalDateTime;
+
 public class UserResponse {
     private Long id;
     private String username;
@@ -20,6 +22,9 @@ public class UserResponse {
     private Long clinicId;
     private String clinicName;
     private boolean active;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
 
     // Constructors
     public UserResponse() {}
@@ -39,6 +44,8 @@ public class UserResponse {
         response.setClinicId(user.getClinic().getId());
         response.setClinicName(user.getClinic().getName());
         response.setActive(user.getIsActive());
+        response.setCreatedAt(user.getCreatedAt());
+        response.setUpdatedAt(user.getUpdatedAt());
         return response;
     }
 
@@ -90,4 +97,20 @@ public class UserResponse {
 
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
 }
