@@ -78,35 +78,45 @@ public class SecurityConfig {
                         // مسارات إدارة العيادات (مدير النظام فقط)
                         .requestMatchers(HttpMethod.POST, "/clinics").hasRole("SYSTEM_ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/clinics/**").hasRole("SYSTEM_ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/clinics/**").hasAnyRole("SYSTEM_ADMIN", "ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/clinics/**").hasRole("SYSTEM_ADMIN")
 
-                        // مسارات إدارة المستخدمين (مدير العيادة أو مدير النظام)
-                        .requestMatchers(HttpMethod.POST, "/users").hasAnyRole("ADMIN", "SYSTEM_ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/users/**").hasAnyRole("ADMIN", "SYSTEM_ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/users/**").hasAnyRole("ADMIN", "SYSTEM_ADMIN")
+                        // مسارات إدارة المستخدمين - تضمين SYSTEM_ADMIN
+                        .requestMatchers(HttpMethod.POST, "/users").hasAnyRole("SYSTEM_ADMIN", "ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/users/**").hasAnyRole("SYSTEM_ADMIN", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/users/**").hasAnyRole("SYSTEM_ADMIN", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/users/**").hasAnyRole("SYSTEM_ADMIN", "ADMIN", "DOCTOR", "NURSE", "RECEPTIONIST")
 
-                        // مسارات المرضى (جميع المستخدمين المصرح لهم)
-                        .requestMatchers("/patients/**").hasAnyRole("ADMIN", "DOCTOR", "NURSE", "RECEPTIONIST")
+                        // مسارات المرضى - تضمين SYSTEM_ADMIN
+                        // IMPORTANT: Specific matchers must come BEFORE general matchers
+                        .requestMatchers(HttpMethod.DELETE, "/patients/*/permanent").hasRole("SYSTEM_ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/patients/*/reactivate").hasAnyRole("SYSTEM_ADMIN", "ADMIN")
+                        .requestMatchers("/patients/**").hasAnyRole("SYSTEM_ADMIN", "ADMIN", "DOCTOR", "NURSE", "RECEPTIONIST")
 
-                        // مسارات المواعيد
-                        .requestMatchers(HttpMethod.GET, "/appointments/**").hasAnyRole("ADMIN", "DOCTOR", "NURSE", "RECEPTIONIST")
-                        .requestMatchers(HttpMethod.POST, "/appointments/**").hasAnyRole("ADMIN", "DOCTOR", "RECEPTIONIST")
-                        .requestMatchers(HttpMethod.PUT, "/appointments/**").hasAnyRole("ADMIN", "DOCTOR", "RECEPTIONIST")
-                        .requestMatchers(HttpMethod.DELETE, "/appointments/**").hasAnyRole("ADMIN", "DOCTOR")
+                        // مسارات المواعيد - تضمين SYSTEM_ADMIN
+                        .requestMatchers(HttpMethod.GET, "/appointments/**").hasAnyRole("SYSTEM_ADMIN", "ADMIN", "DOCTOR", "NURSE", "RECEPTIONIST")
+                        .requestMatchers(HttpMethod.POST, "/appointments/**").hasAnyRole("SYSTEM_ADMIN", "ADMIN", "DOCTOR", "RECEPTIONIST")
+                        .requestMatchers(HttpMethod.PUT, "/appointments/**").hasAnyRole("SYSTEM_ADMIN", "ADMIN", "DOCTOR", "RECEPTIONIST")
+                        .requestMatchers(HttpMethod.DELETE, "/appointments/**").hasAnyRole("SYSTEM_ADMIN", "ADMIN", "DOCTOR")
 
-                        // مسارات السجلات الطبية (الأطباء فقط)
-                        .requestMatchers("/medical-records/**").hasAnyRole("ADMIN", "DOCTOR")
+                        // مسارات السجلات الطبية - تضمين SYSTEM_ADMIN
+                        .requestMatchers("/medical-records/**").hasAnyRole("SYSTEM_ADMIN", "ADMIN", "DOCTOR")
 
-                        // مسارات الفواتير
-                        .requestMatchers(HttpMethod.GET, "/invoices/**").hasAnyRole("ADMIN", "DOCTOR", "RECEPTIONIST")
-                        .requestMatchers(HttpMethod.POST, "/invoices/**").hasAnyRole("ADMIN", "RECEPTIONIST")
-                        .requestMatchers(HttpMethod.PUT, "/invoices/**").hasAnyRole("ADMIN", "RECEPTIONIST")
-                        .requestMatchers(HttpMethod.DELETE, "/invoices/**").hasRole("ADMIN")
+                        // مسارات الفواتير - تضمين SYSTEM_ADMIN
+                        .requestMatchers(HttpMethod.GET, "/invoices/**").hasAnyRole("SYSTEM_ADMIN", "ADMIN", "DOCTOR", "RECEPTIONIST")
+                        .requestMatchers(HttpMethod.POST, "/invoices/**").hasAnyRole("SYSTEM_ADMIN", "ADMIN", "RECEPTIONIST")
+                        .requestMatchers(HttpMethod.PUT, "/invoices/**").hasAnyRole("SYSTEM_ADMIN", "ADMIN", "RECEPTIONIST")
+                        .requestMatchers(HttpMethod.DELETE, "/invoices/**").hasAnyRole("SYSTEM_ADMIN", "ADMIN")
 
-                        // مسارات المدفوعات
-                        .requestMatchers("/payments/**").hasAnyRole("ADMIN", "RECEPTIONIST")
+                        // مسارات المدفوعات - تضمين SYSTEM_ADMIN
+                        .requestMatchers("/payments/**").hasAnyRole("SYSTEM_ADMIN", "ADMIN", "RECEPTIONIST")
 
-                        // التقارير (مدير العيادة والأطباء)
-                        .requestMatchers("/reports/**").hasAnyRole("ADMIN", "DOCTOR")
+                        // التقارير - تضمين SYSTEM_ADMIN
+                        .requestMatchers("/reports/**").hasAnyRole("SYSTEM_ADMIN", "ADMIN", "DOCTOR")
+
+                        // Dashboard and Statistics - تضمين SYSTEM_ADMIN
+                        .requestMatchers("/dashboard/**").hasAnyRole("SYSTEM_ADMIN", "ADMIN", "DOCTOR", "NURSE", "RECEPTIONIST")
+                        .requestMatchers("/statistics/**").hasAnyRole("SYSTEM_ADMIN", "ADMIN", "DOCTOR")
 
                         // باقي المسارات تحتاج تصريح
                         .anyRequest().authenticated()

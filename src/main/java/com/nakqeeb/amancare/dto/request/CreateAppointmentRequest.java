@@ -1,6 +1,7 @@
 package com.nakqeeb.amancare.dto.request;
 
 import com.nakqeeb.amancare.entity.AppointmentType;
+import com.nakqeeb.amancare.validation.FutureOrTodayWithTime;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -14,6 +15,7 @@ import java.time.LocalTime;
  * طلب إنشاء موعد جديد
  */
 @Schema(description = "طلب إنشاء موعد جديد")
+@FutureOrTodayWithTime(dateField = "appointmentDate", timeField = "appointmentTime")
 public class CreateAppointmentRequest {
 
     @Schema(description = "معرف المريض", example = "1", required = true)
@@ -28,7 +30,8 @@ public class CreateAppointmentRequest {
 
     @Schema(description = "تاريخ الموعد", example = "2024-08-28", required = true)
     @NotNull(message = "تاريخ الموعد مطلوب")
-    @Future(message = "تاريخ الموعد يجب أن يكون في المستقبل")
+    // Removed @Future annotation - validation is now handled by @FutureOrTodayWithTime at class level
+    // @Future(message = "تاريخ الموعد يجب أن يكون في المستقبل")
     private LocalDate appointmentDate;
 
     @Schema(description = "وقت الموعد", example = "10:30:00", required = true)

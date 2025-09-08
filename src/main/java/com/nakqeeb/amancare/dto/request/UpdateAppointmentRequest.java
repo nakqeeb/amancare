@@ -1,6 +1,7 @@
 package com.nakqeeb.amancare.dto.request;
 
 import com.nakqeeb.amancare.entity.AppointmentType;
+import com.nakqeeb.amancare.validation.FutureOrTodayWithTime;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -11,6 +12,7 @@ import java.time.LocalTime;
  * طلب تحديث موعد
  */
 @Schema(description = "طلب تحديث موعد")
+@FutureOrTodayWithTime(dateField = "appointmentDate", timeField = "appointmentTime")
 public class UpdateAppointmentRequest {
 
     @Schema(description = "تاريخ الموعد الجديد", example = "2024-08-29")

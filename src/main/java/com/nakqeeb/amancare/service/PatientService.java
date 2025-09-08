@@ -4,19 +4,18 @@
 
 package com.nakqeeb.amancare.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nakqeeb.amancare.dto.request.CreatePatientRequest;
 import com.nakqeeb.amancare.dto.request.UpdatePatientRequest;
-import com.nakqeeb.amancare.dto.response.PatientPageResponse;
-import com.nakqeeb.amancare.dto.response.PatientResponse;
-import com.nakqeeb.amancare.dto.response.PatientStatistics;
-import com.nakqeeb.amancare.dto.response.PatientSummaryResponse;
-import com.nakqeeb.amancare.entity.Clinic;
-import com.nakqeeb.amancare.entity.Patient;
+import com.nakqeeb.amancare.dto.response.*;
+import com.nakqeeb.amancare.entity.*;
 import com.nakqeeb.amancare.exception.ResourceNotFoundException;
 import com.nakqeeb.amancare.exception.BadRequestException;
-import com.nakqeeb.amancare.repository.ClinicRepository;
-import com.nakqeeb.amancare.repository.PatientRepository;
+import com.nakqeeb.amancare.repository.*;
 import com.nakqeeb.amancare.util.DateTimeUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -26,9 +25,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -37,12 +40,31 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class PatientService {
+    private static final Logger logger = LoggerFactory.getLogger(PatientService.class);
 
     @Autowired
     private PatientRepository patientRepository;
 
     @Autowired
     private ClinicRepository clinicRepository;
+
+    @Autowired
+    private MedicalRecordRepository medicalRecordRepository;
+
+    @Autowired
+    private AppointmentRepository appointmentRepository;
+
+    @Autowired
+    private PaymentRepository paymentRepository;
+
+    @Autowired
+    private InvoiceRepository invoiceRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private AuditLogRepository auditLogRepository;
 
     /**
      * إنشاء مريض جديد
@@ -296,6 +318,277 @@ public class PatientService {
                 .map(PatientSummaryResponse::fromPatient)
                 .collect(Collectors.toList());
     }
+
+    /**
+     * حذف المريض نهائياً من قاعدة البيانات
+     * WARNING: This operation cannot be undone
+     */
+    @Transactional
+    public PermanentDeleteResponse permanentlyDeletePatient(Long clinicId, Long patientId, Long deletedByUserId) {
+        logger.info("Starting permanent deletion of patient {} by user {}", patientId, deletedByUserId);
+
+        Patient patient = patientRepository.findById(patientId)
+                .orElseThrow(() -> new ResourceNotFoundException("المريض غير موجود"));
+
+        // FIX: Check user role to allow SYSTEM_ADMIN cross-clinic deletion
+        User deletingUser = userRepository.findById(deletedByUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        // SYSTEM_ADMIN can delete patients from any clinic
+        if (deletingUser.getRole() != UserRole.SYSTEM_ADMIN) {
+            // Only check clinic ID for non-SYSTEM_ADMIN users
+            if (!patient.getClinic().getId().equals(clinicId)) {
+                logger.error("Patient {} does not belong to clinic {}", patientId, clinicId);
+                throw new ResourceNotFoundException("المريض غير موجود في هذه العيادة");
+            }
+        } else {
+            // Log cross-clinic deletion for SYSTEM_ADMIN
+            if (!patient.getClinic().getId().equals(clinicId)) {
+                logger.warn("CROSS-CLINIC DELETION: SYSTEM_ADMIN {} (clinic {}) deleting patient {} from clinic {}",
+                        deletingUser.getUsername(),
+                        clinicId,
+                        patientId,
+                        patient.getClinic().getId());
+            }
+        }
+
+        // Check for future appointments
+        LocalDate today = LocalDate.now();
+        LocalTime currentTime = LocalTime.now();
+
+        long futureAppointments = patient.getAppointments().stream()
+                .filter(apt -> {
+                    LocalDate aptDate = apt.getAppointmentDate();
+                    LocalTime aptTime = apt.getAppointmentTime();
+
+                    boolean isFuture = aptDate.isAfter(today) ||
+                            (aptDate.equals(today) && aptTime.isAfter(currentTime));
+
+                    return isFuture && apt.getStatus() != AppointmentStatus.CANCELLED;
+                })
+                .count();
+
+        if (futureAppointments > 0) {
+            throw new IllegalStateException(
+                    String.format("لا يمكن حذف المريض - يوجد %d موعد مستقبلي", futureAppointments));
+        }
+
+        // Check for unpaid invoices
+        BigDecimal totalUnpaid = patient.getInvoices().stream()
+                .filter(inv -> inv.getStatus() != InvoiceStatus.PAID)
+                .map(Invoice::getBalanceDue)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (totalUnpaid.compareTo(BigDecimal.ZERO) > 0) {
+            throw new IllegalStateException(
+                    String.format("لا يمكن حذف المريض - يوجد مبلغ مستحق: %.2f", totalUnpaid));
+        }
+
+        // Create comprehensive audit log
+        AuditLog auditLog = new AuditLog.Builder()
+                .action("PERMANENT_DELETE_PATIENT")
+                .entityType("PATIENT")
+                .entityId(patient.getId())
+                .userId(deletingUser.getId())
+                .username(deletingUser.getUsername())
+                .userRole(deletingUser.getRole().toString())
+                .clinicId(patient.getClinic().getId())  // Use patient's clinic for audit
+                .clinicName(patient.getClinic().getName())
+                .severity(AuditLog.AuditSeverity.CRITICAL)
+                .success(true)
+                .build();
+
+        // Store deletion details
+        Map<String, Object> deletedData = new HashMap<>();
+        deletedData.put("patientNumber", patient.getPatientNumber());
+        deletedData.put("fullName", patient.getFullName());
+        deletedData.put("phone", patient.getPhone());
+        deletedData.put("patientClinicId", patient.getClinic().getId());
+        deletedData.put("deletedByUserId", deletingUser.getId());
+        deletedData.put("deletedByUserClinicId", deletingUser.getClinic().getId());
+        deletedData.put("crossClinicDeletion", !patient.getClinic().getId().equals(deletingUser.getClinic().getId()));
+
+        try {
+            auditLog.setData(new ObjectMapper().writeValueAsString(deletedData));
+        } catch (Exception e) {
+            logger.error("Error serializing audit data", e);
+        }
+
+        auditLogRepository.save(auditLog);
+
+        // Delete related records
+        if (patient.getMedicalRecords() != null && !patient.getMedicalRecords().isEmpty()) {
+            medicalRecordRepository.deleteAll(patient.getMedicalRecords());
+        }
+
+        if (patient.getAppointments() != null && !patient.getAppointments().isEmpty()) {
+            appointmentRepository.deleteAll(patient.getAppointments());
+        }
+
+        if (patient.getInvoices() != null && !patient.getInvoices().isEmpty()) {
+            for (Invoice invoice : patient.getInvoices()) {
+                if (invoice.getPayments() != null) {
+                    paymentRepository.deleteAll(invoice.getPayments());
+                }
+            }
+            invoiceRepository.deleteAll(patient.getInvoices());
+        }
+
+        // Delete the patient
+        patientRepository.delete(patient);
+
+        logger.warn("Patient {} permanently deleted by {} (role: {})",
+                patientId, deletingUser.getUsername(), deletingUser.getRole());
+
+        // Create response
+        PermanentDeleteResponse response = new PermanentDeleteResponse();
+        response.setPatientId(patient.getId());
+        response.setPatientNumber(patient.getPatientNumber());
+        response.setPatientName(patient.getFullName());
+        response.setDeletedAt(LocalDateTime.now());
+        response.setDeletedByUserId(deletingUser.getId());
+        response.setRecordsDeleted(Map.of(
+                "appointments", patient.getAppointments() != null ? patient.getAppointments().size() : 0,
+                "medicalRecords", patient.getMedicalRecords() != null ? patient.getMedicalRecords().size() : 0,
+                "invoices", patient.getInvoices() != null ? patient.getInvoices().size() : 0
+        ));
+
+        return response;
+    }
+
+    /**
+     * Validate that patient can be permanently deleted
+     */
+    private void validatePatientCanBeDeleted(Patient patient) {
+        // Check for future appointments
+        /*LocalDateTime now = LocalDateTime.now();
+        long futureAppointments = patient.getAppointments().stream()
+                .filter(apt -> apt.getAppointmentDateTime().isAfter(now)
+                        && apt.getStatus() != AppointmentStatus.CANCELLED)
+                .count();*/
+        LocalDate today = LocalDate.now();
+        LocalTime currentTime = LocalTime.now();
+
+        long futureAppointments = patient.getAppointments().stream()
+                .filter(apt -> {
+                    LocalDate aptDate = apt.getAppointmentDate();
+                    LocalTime aptTime = apt.getAppointmentTime();
+
+                    boolean isFuture = aptDate.isAfter(today) ||
+                            (aptDate.equals(today) && aptTime.isAfter(currentTime));
+
+                    return isFuture && apt.getStatus() != AppointmentStatus.CANCELLED;
+                })
+                .count();
+
+        if (futureAppointments > 0) {
+            throw new IllegalStateException(
+                    String.format("لا يمكن حذف المريض - يوجد %d موعد مستقبلي", futureAppointments));
+        }
+
+        // Check for unpaid invoices
+        BigDecimal totalUnpaid = patient.getInvoices().stream()
+                .filter(inv -> inv.getStatus() != InvoiceStatus.PAID)
+                .map(Invoice::getBalanceDue)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (totalUnpaid.compareTo(BigDecimal.ZERO) > 0) {
+            throw new IllegalStateException(
+                    String.format("لا يمكن حذف المريض - يوجد مبلغ مستحق: %.2f", totalUnpaid));
+        }
+    }
+
+    /**
+     * Delete all patient-related data
+     */
+    private void deletePatientRelatedData(Patient patient) {
+        // Delete medical records
+        if (patient.getMedicalRecords() != null && !patient.getMedicalRecords().isEmpty()) {
+            medicalRecordRepository.deleteAll(patient.getMedicalRecords());
+            logger.debug("Deleted {} medical records for patient {}",
+                    patient.getMedicalRecords().size(), patient.getId());
+        }
+
+        // Delete appointments
+        if (patient.getAppointments() != null && !patient.getAppointments().isEmpty()) {
+            appointmentRepository.deleteAll(patient.getAppointments());
+            logger.debug("Deleted {} appointments for patient {}",
+                    patient.getAppointments().size(), patient.getId());
+        }
+
+        // Delete invoices and payments
+        if (patient.getInvoices() != null && !patient.getInvoices().isEmpty()) {
+            for (Invoice invoice : patient.getInvoices()) {
+                // Delete payments first
+                if (invoice.getPayments() != null) {
+                    paymentRepository.deleteAll(invoice.getPayments());
+                }
+            }
+            invoiceRepository.deleteAll(patient.getInvoices());
+            logger.debug("Deleted {} invoices for patient {}",
+                    patient.getInvoices().size(), patient.getId());
+        }
+
+        // Delete any patient documents/files
+        // deletePatientFiles(patient.getId());
+    }
+
+    /**
+     * Create audit log for permanent deletion
+     */
+    private PermanentDeleteResponse createDeletionAuditLog(Patient patient, Long deletedByUserId) throws JsonProcessingException {
+        // Create audit entry
+        AuditLog auditLog = new AuditLog();
+        auditLog.setAction("PERMANENT_DELETE_PATIENT");
+        auditLog.setEntityType("PATIENT");
+        auditLog.setEntityId(patient.getId());
+        auditLog.setUserId(deletedByUserId);
+        auditLog.setClinicId(patient.getClinic().getId());
+        auditLog.setTimestamp(LocalDateTime.now());
+
+        // Store patient summary in audit log
+        Map<String, Object> deletedData = new HashMap<>();
+        deletedData.put("patientNumber", patient.getPatientNumber());
+        deletedData.put("fullName", patient.getFullName());
+        deletedData.put("phone", patient.getPhone());
+        // deletedData.put("nationalId", patient.getNationalId());
+        deletedData.put("dateOfBirth", patient.getDateOfBirth());
+        deletedData.put("totalAppointments", patient.getAppointments().size());
+        deletedData.put("totalMedicalRecords", patient.getMedicalRecords().size());
+        deletedData.put("totalInvoices", patient.getInvoices().size());
+
+        auditLog.setData(new ObjectMapper().writeValueAsString(deletedData));
+        auditLogRepository.save(auditLog);
+
+        // Create response
+        PermanentDeleteResponse response = new PermanentDeleteResponse();
+        response.setPatientId(patient.getId());
+        response.setPatientNumber(patient.getPatientNumber());
+        response.setPatientName(patient.getFullName());
+        response.setDeletedAt(LocalDateTime.now());
+        response.setDeletedByUserId(deletedByUserId);
+        response.setRecordsDeleted(Map.of(
+                "appointments", patient.getAppointments().size(),
+                "medicalRecords", patient.getMedicalRecords().size(),
+                "invoices", patient.getInvoices().size()
+        ));
+
+        return response;
+    }
+
+    /**
+     * Delete patient files from storage
+     */
+    /* private void deletePatientFiles(Long patientId) {
+        try {
+            // Delete from file storage service
+            String patientFolder = "patients/" + patientId;
+            fileStorageService.deleteFolder(patientFolder);
+            logger.debug("Deleted files for patient {}", patientId);
+        } catch (Exception e) {
+            logger.error("Error deleting files for patient {}: {}", patientId, e.getMessage());
+        }
+    }*/
 
     // =============================================================================
     // Private Helper Methods

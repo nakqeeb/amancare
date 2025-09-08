@@ -91,13 +91,19 @@ public class Patient extends BaseEntity {
     private Boolean isActive = true;
 
     // العلاقات
-    @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "patient",
+            cascade = {CascadeType.PERSIST, CascadeType.MERGE}, // Don't add REMOVE here unless you're sure
+            fetch = FetchType.LAZY)
     private List<Appointment> appointments;
 
-    @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "patient",
+            cascade = {CascadeType.PERSIST, CascadeType.MERGE}, // Don't add REMOVE here unless you're sure
+            fetch = FetchType.LAZY)
     private List<MedicalRecord> medicalRecords;
 
-    @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "patient",
+            cascade = {CascadeType.PERSIST, CascadeType.MERGE}, // Don't add REMOVE here unless you're sure
+            fetch = FetchType.LAZY)
     private List<Invoice> invoices;
 
     // Constructors

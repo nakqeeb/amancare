@@ -6,11 +6,7 @@ package com.nakqeeb.amancare.controller;
 
 import com.nakqeeb.amancare.dto.request.CreatePatientRequest;
 import com.nakqeeb.amancare.dto.request.UpdatePatientRequest;
-import com.nakqeeb.amancare.dto.response.ApiResponse;
-import com.nakqeeb.amancare.dto.response.PatientPageResponse;
-import com.nakqeeb.amancare.dto.response.PatientResponse;
-import com.nakqeeb.amancare.dto.response.PatientStatistics;
-import com.nakqeeb.amancare.dto.response.PatientSummaryResponse;
+import com.nakqeeb.amancare.dto.response.*;
 import com.nakqeeb.amancare.security.UserPrincipal;
 import com.nakqeeb.amancare.service.PatientService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,6 +16,8 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,6 +35,7 @@ import java.util.List;
 @Tag(name = "👥 إدارة المرضى", description = "APIs الخاصة بإدارة بيانات المرضى")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class PatientController {
+    private static final Logger logger = LoggerFactory.getLogger(PatientController.class);
 
     @Autowired
     private PatientService patientService;
@@ -332,6 +331,76 @@ public class PatientController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new ApiResponse<>(false, "فشل في إعادة تفعيل المريض: " + e.getMessage(), null));
+        }
+    }
+
+    /**
+     * حذف مريض نهائياً - SYSTEM_ADMIN فقط
+     * WARNING: This permanently deletes all patient data and cannot be undone
+     */
+    @DeleteMapping("/{id}/permanent")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
+    @Operation(
+            summary = "⚠️ حذف المريض نهائياً",
+            description = "حذف المريض نهائياً من قاعدة البيانات (مدير النظام فقط) - تحذير: لا يمكن التراجع عن هذا الإجراء"
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "تم حذف المريض نهائياً بنجاح"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "المريض غير موجود"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "غير مصرح - يجب تسجيل الدخول"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "ممنوع - مدير النظام فقط"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "409",
+                    description = "لا يمكن حذف المريض - يحتوي على سجلات مرتبطة نشطة"
+            )
+    })
+    public ResponseEntity<ApiResponse<PermanentDeleteResponse>> permanentlyDeletePatient(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف المريض", example = "1")
+            @PathVariable Long id,
+            @Parameter(description = "رمز التأكيد للحذف النهائي", example = "DELETE-CONFIRM")
+            @RequestParam(required = true) String confirmationCode) {
+
+        // Verify confirmation code
+        if (!"DELETE-CONFIRM".equals(confirmationCode)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse<>(false,
+                            "رمز التأكيد غير صحيح. يجب إدخال DELETE-CONFIRM للمتابعة", null));
+        }
+
+        try {
+            // Log this critical action
+            logger.warn("PERMANENT DELETE: User {} (ID: {}) is permanently deleting patient ID: {}",
+                    currentUser.getUsername(), currentUser.getId(), id);
+
+            PermanentDeleteResponse response = patientService.permanentlyDeletePatient(
+                    currentUser.getClinicId(), id, currentUser.getId());
+
+            return ResponseEntity.ok(
+                    new ApiResponse<>(true,
+                            "تم حذف المريض نهائياً. تم حذف جميع البيانات المرتبطة.", response)
+            );
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new ApiResponse<>(false,
+                            "لا يمكن حذف المريض: " + e.getMessage(), null));
+        } catch (Exception e) {
+            logger.error("Error permanently deleting patient {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse<>(false,
+                            "فشل في حذف المريض نهائياً: " + e.getMessage(), null));
         }
     }
 
