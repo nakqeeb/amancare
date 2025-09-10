@@ -13,6 +13,7 @@ import com.nakqeeb.amancare.entity.*;
 import com.nakqeeb.amancare.exception.ResourceNotFoundException;
 import com.nakqeeb.amancare.exception.BadRequestException;
 import com.nakqeeb.amancare.repository.*;
+import com.nakqeeb.amancare.security.UserPrincipal;
 import com.nakqeeb.amancare.util.DateTimeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,14 +65,26 @@ public class PatientService {
     private UserRepository userRepository;
 
     @Autowired
+    private ClinicContextService clinicContextService;
+
+    @Autowired
     private AuditLogRepository auditLogRepository;
+
+    @Autowired
+    private AuditLogService auditLogService;
 
     /**
      * إنشاء مريض جديد
      */
-    public PatientResponse createPatient(Long clinicId, CreatePatientRequest request) {
+    public PatientResponse createPatient(UserPrincipal currentUser, CreatePatientRequest request) {
+        // Get effective clinic ID - this will throw exception if SYSTEM_ADMIN has no context
+        Long effectiveClinicId = clinicContextService.getEffectiveClinicId(currentUser);
+
+        logger.info("Creating patient in clinic {} by user {}",
+                effectiveClinicId, currentUser.getUsername());
+
         // التحقق من وجود العيادة
-        Clinic clinic = clinicRepository.findById(clinicId)
+        Clinic clinic = clinicRepository.findById(effectiveClinicId)
                 .orElseThrow(() -> new ResourceNotFoundException("العيادة غير موجودة"));
 
         // التحقق من عدم وجود مريض بنفس رقم الهاتف
@@ -100,6 +113,19 @@ public class PatientService {
         patient.setPatientNumber(generatePatientNumber(clinic));
 
         Patient savedPatient = patientRepository.save(patient);
+
+        // Log action if SYSTEM_ADMIN
+        if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+            auditLogService.logAction(
+                    currentUser.getId(),
+                    "CREATE_PATIENT",
+                    effectiveClinicId,
+                    "PATIENT",
+                    savedPatient.getId(),
+                    "Created patient: " + savedPatient.getFullName()
+            );
+        }
+
         return PatientResponse.fromPatient(savedPatient);
     }
 

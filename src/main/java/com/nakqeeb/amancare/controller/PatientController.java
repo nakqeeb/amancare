@@ -4,10 +4,13 @@
 
 package com.nakqeeb.amancare.controller;
 
+import com.nakqeeb.amancare.annotation.SystemAdminContext;
 import com.nakqeeb.amancare.dto.request.CreatePatientRequest;
 import com.nakqeeb.amancare.dto.request.UpdatePatientRequest;
 import com.nakqeeb.amancare.dto.response.*;
+import com.nakqeeb.amancare.entity.UserRole;
 import com.nakqeeb.amancare.security.UserPrincipal;
+import com.nakqeeb.amancare.service.ClinicContextService;
 import com.nakqeeb.amancare.service.PatientService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -40,14 +43,26 @@ public class PatientController {
     @Autowired
     private PatientService patientService;
 
+    @Autowired
+    private ClinicContextService clinicContextService;
+
     /**
      * إنشاء مريض جديد
      */
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
+    @SystemAdminContext
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST')")
     @Operation(
             summary = "➕ إنشاء مريض جديد",
-            description = "إضافة مريض جديد إلى العيادة مع توليد رقم مريض تلقائي",
+            description = """
+            إضافة مريض جديد إلى العيادة مع توليد رقم مريض تلقائي :
+            - SYSTEM_ADMIN: يجب تفعيل سياق العيادة أولاً
+            - باقي الأدوار: يضيفون في عيادتهم مباشرة
+            
+            Headers المطلوبة لـ SYSTEM_ADMIN:
+            - X-Acting-Clinic-Id: معرف العيادة
+            - X-Acting-Reason: سبب العملية
+            """,
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     content = @Content(
                             examples = @ExampleObject(
@@ -84,9 +99,19 @@ public class PatientController {
             @AuthenticationPrincipal UserPrincipal currentUser,
             @Valid @RequestBody CreatePatientRequest request) {
         try {
-            PatientResponse patient = patientService.createPatient(currentUser.getClinicId(), request);
+            // Log if SYSTEM_ADMIN is acting with context
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                ClinicContextService.ClinicContextInfo contextInfo =
+                        clinicContextService.getCurrentContext(currentUser);
+                logger.info("SYSTEM_ADMIN context: Acting as clinic {} - Reason: {}",
+                        contextInfo.getActingAsClinicId(), contextInfo.getReason());
+            }
+
+            PatientResponse patient = patientService.createPatient(currentUser, request);
+
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(new ApiResponse<>(true, "تم إنشاء المريض بنجاح", patient));
+
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse<>(false, "فشل في إنشاء المريض: " + e.getMessage(), null));
@@ -97,7 +122,7 @@ public class PatientController {
      * الحصول على جميع المرضى مع ترقيم الصفحات
      */
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
     @Operation(
             summary = "📋 قائمة المرضى",
             description = "الحصول على قائمة المرضى مع دعم ترقيم الصفحات والترتيب"
@@ -109,6 +134,8 @@ public class PatientController {
     })
     public ResponseEntity<ApiResponse<PatientPageResponse>> getAllPatients(
             @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId,
             @Parameter(description = "رقم الصفحة (يبدأ من 0)", example = "0")
             @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "حجم الصفحة", example = "10")
@@ -118,8 +145,19 @@ public class PatientController {
             @Parameter(description = "اتجاه الترتيب", example = "asc")
             @RequestParam(defaultValue = "asc") String sortDirection) {
         try {
+            // For READ operations, SYSTEM_ADMIN doesn't need context
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                // SYSTEM_ADMIN can specify clinic or get all
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN reading patients from clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                // Other users can only see their clinic
+                effectiveClinicId = currentUser.getClinicId();
+            }
             PatientPageResponse patients = patientService.getAllPatients(
-                    currentUser.getClinicId(), page, size, sortBy, sortDirection
+                    effectiveClinicId, page, size, sortBy, sortDirection
             );
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم الحصول على قائمة المرضى بنجاح", patients)
@@ -134,7 +172,7 @@ public class PatientController {
      * البحث في المرضى
      */
     @GetMapping("/search")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
     @Operation(
             summary = "🔍 البحث في المرضى",
             description = "البحث في المرضى بالاسم أو رقم الهاتف أو رقم المريض"
@@ -146,6 +184,8 @@ public class PatientController {
     })
     public ResponseEntity<ApiResponse<PatientPageResponse>> searchPatients(
             @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId,
             @Parameter(description = "كلمة البحث (الاسم، الهاتف، رقم المريض)", example = "محمد")
             @RequestParam(required = false) String q,
             @Parameter(description = "رقم الصفحة", example = "0")
@@ -153,8 +193,19 @@ public class PatientController {
             @Parameter(description = "حجم الصفحة", example = "10")
             @RequestParam(defaultValue = "10") int size) {
         try {
+            // For READ operations, SYSTEM_ADMIN doesn't need context
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                // SYSTEM_ADMIN can specify clinic or get all
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN reading searched patients from clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                // Other users can only see their clinic
+                effectiveClinicId = currentUser.getClinicId();
+            }
             PatientPageResponse patients = patientService.searchPatients(
-                    currentUser.getClinicId(), q, page, size
+                    effectiveClinicId, q, page, size
             );
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم البحث بنجاح", patients)
@@ -169,7 +220,7 @@ public class PatientController {
      * الحصول على مريض بالمعرف
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
     @Operation(
             summary = "👤 تفاصيل المريض",
             description = "الحصول على تفاصيل مريض محدد بالمعرف"
@@ -182,10 +233,23 @@ public class PatientController {
     })
     public ResponseEntity<ApiResponse<PatientResponse>> getPatientById(
             @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId,
             @Parameter(description = "معرف المريض", example = "1")
             @PathVariable Long id) {
         try {
-            PatientResponse patient = patientService.getPatientById(currentUser.getClinicId(), id);
+            // For READ operations, SYSTEM_ADMIN doesn't need context
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                // SYSTEM_ADMIN can specify clinic or get all
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN reading a patient from clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                // Other users can only see their clinic
+                effectiveClinicId = currentUser.getClinicId();
+            }
+            PatientResponse patient = patientService.getPatientById(effectiveClinicId, id);
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم الحصول على تفاصيل المريض بنجاح", patient)
             );
@@ -199,7 +263,7 @@ public class PatientController {
      * الحصول على مريض برقم المريض
      */
     @GetMapping("/number/{patientNumber}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
     @Operation(
             summary = "🔢 البحث برقم المريض",
             description = "الحصول على مريض باستخدام رقم المريض"
@@ -212,10 +276,23 @@ public class PatientController {
     })
     public ResponseEntity<ApiResponse<PatientResponse>> getPatientByNumber(
             @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId,
             @Parameter(description = "رقم المريض", example = "P202401001")
             @PathVariable String patientNumber) {
         try {
-            PatientResponse patient = patientService.getPatientByNumber(currentUser.getClinicId(), patientNumber);
+            // For READ operations, SYSTEM_ADMIN doesn't need context
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                // SYSTEM_ADMIN can specify clinic or get all
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN reading patient from clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                // Other users can only see their clinic
+                effectiveClinicId = currentUser.getClinicId();
+            }
+            PatientResponse patient = patientService.getPatientByNumber(effectiveClinicId, patientNumber);
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم العثور على المريض بنجاح", patient)
             );
@@ -408,7 +485,7 @@ public class PatientController {
      * إحصائيات المرضى
      */
     @GetMapping("/statistics")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR')")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR')")
     @Operation(
             summary = "📊 إحصائيات المرضى",
             description = "الحصول على إحصائيات المرضى في العيادة"
@@ -419,9 +496,22 @@ public class PatientController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ممنوع - مدير العيادة أو الطبيب فقط")
     })
     public ResponseEntity<ApiResponse<PatientStatistics>> getPatientStatistics(
-            @AuthenticationPrincipal UserPrincipal currentUser) {
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId) {
         try {
-            PatientStatistics statistics = patientService.getPatientStatistics(currentUser.getClinicId());
+            // For READ operations, SYSTEM_ADMIN doesn't need context
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                // SYSTEM_ADMIN can specify clinic or get all
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN reading patient statistics from clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                // Other users can only see their clinic
+                effectiveClinicId = currentUser.getClinicId();
+            }
+            PatientStatistics statistics = patientService.getPatientStatistics(effectiveClinicId);
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم الحصول على الإحصائيات بنجاح", statistics)
             );
@@ -435,7 +525,7 @@ public class PatientController {
      * المرضى الذين لديهم مواعيد اليوم
      */
     @GetMapping("/today")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
     @Operation(
             summary = "📅 مرضى اليوم",
             description = "الحصول على قائمة المرضى الذين لديهم مواعيد اليوم"
@@ -446,9 +536,22 @@ public class PatientController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ممنوع - صلاحيات غير كافية")
     })
     public ResponseEntity<ApiResponse<List<PatientSummaryResponse>>> getTodayPatients(
-            @AuthenticationPrincipal UserPrincipal currentUser) {
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId) {
         try {
-            List<PatientSummaryResponse> todayPatients = patientService.getTodayPatients(currentUser.getClinicId());
+            // For READ operations, SYSTEM_ADMIN doesn't need context
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                // SYSTEM_ADMIN can specify clinic or get all
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN reading today's patients from clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                // Other users can only see their clinic
+                effectiveClinicId = currentUser.getClinicId();
+            }
+            List<PatientSummaryResponse> todayPatients = patientService.getTodayPatients(effectiveClinicId);
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم الحصول على مرضى اليوم بنجاح", todayPatients)
             );
