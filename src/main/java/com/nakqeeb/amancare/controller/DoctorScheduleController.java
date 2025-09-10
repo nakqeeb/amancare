@@ -4,12 +4,14 @@
 
 package com.nakqeeb.amancare.controller;
 
+import com.nakqeeb.amancare.annotation.SystemAdminContext;
 import com.nakqeeb.amancare.dto.request.CreateDoctorScheduleRequest;
 import com.nakqeeb.amancare.dto.request.CreateUnavailabilityRequest;
 import com.nakqeeb.amancare.dto.response.*;
 import com.nakqeeb.amancare.entity.DoctorSchedule;
 import com.nakqeeb.amancare.entity.DoctorUnavailability;
 import com.nakqeeb.amancare.entity.User;
+import com.nakqeeb.amancare.entity.UserRole;
 import com.nakqeeb.amancare.exception.ResourceNotFoundException;
 import com.nakqeeb.amancare.repository.UserRepository;
 import com.nakqeeb.amancare.security.UserPrincipal;
@@ -23,6 +25,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -44,6 +48,7 @@ import java.util.stream.Collectors;
 @Tag(name = "🗓️ جدولة الأطباء", description = "APIs الخاصة بإدارة جداول ومواعيد عمل الأطباء")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class DoctorScheduleController {
+    private static final Logger logger = LoggerFactory.getLogger(DoctorScheduleController.class);
 
     @Autowired
     private DoctorScheduleService scheduleService;
@@ -54,7 +59,8 @@ public class DoctorScheduleController {
      * إنشاء جدولة جديدة للطبيب
      */
     @PostMapping("/doctor")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR')")
+    @SystemAdminContext
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR')")
     @Operation(
             summary = "➕ إنشاء جدولة طبيب",
             description = "إنشاء جدول عمل جديد للطبيب مع تحديد الأيام والأوقات",
@@ -125,7 +131,8 @@ public class DoctorScheduleController {
      * إضافة وقت عدم توفر للطبيب
      */
     @PostMapping("/unavailability")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR')")
+    @SystemAdminContext
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR')")
     @Operation(
             summary = "🚫 إضافة عدم توفر",
             description = "إضافة وقت عدم توفر للطبيب (إجازة، مؤتمر، طوارئ)",
@@ -189,7 +196,7 @@ public class DoctorScheduleController {
      * الحصول على جدولة طبيب
      */
     @GetMapping("/doctor/{doctorId}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
     @Operation(
             summary = "📅 جدولة الطبيب",
             description = "الحصول على جدول عمل طبيب معين"
@@ -202,11 +209,24 @@ public class DoctorScheduleController {
     })
     public ResponseEntity<ApiResponse<List<DoctorScheduleResponse>>> getDoctorSchedule(
             @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId,
             @Parameter(description = "معرف الطبيب", example = "2")
             @PathVariable Long doctorId) {
         try {
+            // For READ operations, SYSTEM_ADMIN doesn't need context
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                // SYSTEM_ADMIN can specify clinic or get all
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN reading availability times for a specific doctor from clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                // Other users can only see their clinic
+                effectiveClinicId = currentUser.getClinicId();
+            }
             List<DoctorSchedule> schedules = scheduleService.getDoctorSchedule(
-                    currentUser.getClinicId(), doctorId);
+                    effectiveClinicId, doctorId);
 
             List<DoctorScheduleResponse> responses = schedules.stream()
                     .map(DoctorScheduleResponse::fromEntity)
@@ -225,7 +245,7 @@ public class DoctorScheduleController {
      * الحصول على عدم توفر الطبيب
      */
     @GetMapping("/doctor/{doctorId}/unavailability")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
     @Operation(
             summary = "🚫 أوقات عدم التوفر",
             description = "الحصول على أوقات عدم توفر طبيب في فترة زمنية معينة"
@@ -238,6 +258,8 @@ public class DoctorScheduleController {
     })
     public ResponseEntity<ApiResponse<List<UnavailabilityResponse>>> getDoctorUnavailability(
             @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId,
             @Parameter(description = "معرف الطبيب", example = "2")
             @PathVariable Long doctorId,
             @Parameter(description = "تاريخ البداية", example = "2024-09-01")
@@ -245,11 +267,22 @@ public class DoctorScheduleController {
             @Parameter(description = "تاريخ النهاية", example = "2024-09-30")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         try {
+            // For READ operations, SYSTEM_ADMIN doesn't need context
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                // SYSTEM_ADMIN can specify clinic or get all
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN reading unavailability times for a specific doctor from clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                // Other users can only see their clinic
+                effectiveClinicId = currentUser.getClinicId();
+            }
             LocalDate start = startDate != null ? startDate : LocalDate.now();
             LocalDate end = endDate != null ? endDate : start.plusMonths(1);
 
             List<DoctorUnavailability> unavailabilities = scheduleService.getDoctorUnavailability(
-                    currentUser.getClinicId(), doctorId, start, end);
+                    effectiveClinicId, doctorId, start, end);
 
             List<UnavailabilityResponse> responses = unavailabilities.stream()
                     .map(UnavailabilityResponse::fromEntity)
@@ -268,7 +301,7 @@ public class DoctorScheduleController {
      * الحصول على الأوقات المتاحة للطبيب في تاريخ معين
      */
     @GetMapping("/doctor/{doctorId}/available-slots")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
     @Operation(
             summary = "🕐 الأوقات المتاحة",
             description = "الحصول على الأوقات المتاحة للطبيب في تاريخ معين لحجز المواعيد"
@@ -281,6 +314,8 @@ public class DoctorScheduleController {
     })
     public ResponseEntity<ApiResponse<List<LocalTime>>> getAvailableTimeSlots(
             @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId,
             @Parameter(description = "معرف الطبيب", example = "2")
             @PathVariable Long doctorId,
             @Parameter(description = "التاريخ المطلوب", example = "2024-09-15", required = true)
@@ -288,8 +323,19 @@ public class DoctorScheduleController {
             @Parameter(description = "مدة الموعد بالدقائق", example = "30")
             @RequestParam(defaultValue = "30") int durationMinutes) {
         try {
+            // For READ operations, SYSTEM_ADMIN doesn't need context
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                // SYSTEM_ADMIN can specify clinic or get all
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN reading available-slots for a specific doctor at specific time from clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                // Other users can only see their clinic
+                effectiveClinicId = currentUser.getClinicId();
+            }
             List<LocalTime> availableSlots = scheduleService.getAvailableTimeSlots(
-                    currentUser.getClinicId(), doctorId, date, durationMinutes);
+                    effectiveClinicId, doctorId, date, durationMinutes);
 
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم الحصول على الأوقات المتاحة بنجاح", availableSlots)
@@ -304,7 +350,7 @@ public class DoctorScheduleController {
      * الحصول على الأطباء المتاحين في وقت معين
      */
     @GetMapping("/available-doctors")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
     @Operation(
             summary = "👨‍⚕️ الأطباء المتاحون",
             description = "الحصول على قائمة الأطباء المتاحين في تاريخ ووقت معين"
@@ -316,6 +362,8 @@ public class DoctorScheduleController {
     })
     public ResponseEntity<ApiResponse<List<DoctorSummaryResponse>>> getAvailableDoctors(
             @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId,
             @Parameter(description = "التاريخ المطلوب", example = "2024-09-15", required = true)
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             // @Parameter(description = "الوقت المطلوب", example = "10:30:00", required = true)
@@ -323,8 +371,19 @@ public class DoctorScheduleController {
                     schema = @Schema(type = "string", description = "الوقت المطلوب" , example = "10:30:00"))
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime time) {
         try {
+            // For READ operations, SYSTEM_ADMIN doesn't need context
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                // SYSTEM_ADMIN can specify clinic or get all
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN reading available-doctors at specific time from clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                // Other users can only see their clinic
+                effectiveClinicId = currentUser.getClinicId();
+            }
             List<User> availableDoctors = scheduleService.getAvailableDoctors(
-                    currentUser.getClinicId(), date, time);
+                    effectiveClinicId, date, time);
 
             List<DoctorSummaryResponse> responses = availableDoctors.stream()
                     .map(doctor -> {
@@ -349,7 +408,7 @@ public class DoctorScheduleController {
      * التحقق من توفر الطبيب
      */
     @GetMapping("/doctor/{doctorId}/availability")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
     @Operation(
             summary = "✅ التحقق من التوفر",
             description = "التحقق من توفر طبيب معين في تاريخ ووقت محدد"
@@ -396,7 +455,8 @@ public class DoctorScheduleController {
      * حذف جدولة
      */
     @DeleteMapping("/{scheduleId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @SystemAdminContext
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN')")
     @Operation(
             summary = "🗑️ حذف جدولة",
             description = "حذف جدولة معينة (مدير العيادة فقط)"
@@ -426,7 +486,8 @@ public class DoctorScheduleController {
      * حذف عدم توفر
      */
     @DeleteMapping("/unavailability/{unavailabilityId}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR')")
+    @SystemAdminContext
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR')")
     @Operation(
             summary = "🗑️ حذف عدم توفر",
             description = "حذف فترة عدم توفر معينة"
@@ -456,7 +517,7 @@ public class DoctorScheduleController {
      * الحصول على جداول جميع أطباء العيادة
      */
     @GetMapping("/all")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('RECEPTIONIST')")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('RECEPTIONIST')")
     @Operation(
             summary = "📅 جداول جميع الأطباء",
             description = "الحصول على جداول عمل جميع أطباء العيادة"
@@ -467,10 +528,23 @@ public class DoctorScheduleController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ممنوع - صلاحيات غير كافية")
     })
     public ResponseEntity<ApiResponse<List<DoctorScheduleResponse>>> getAllDoctorsSchedules(
-            @AuthenticationPrincipal UserPrincipal currentUser) {
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId) {
         try {
+            // For READ operations, SYSTEM_ADMIN doesn't need context
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                // SYSTEM_ADMIN can specify clinic or get all
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN reading all doctors schedules from clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                // Other users can only see their clinic
+                effectiveClinicId = currentUser.getClinicId();
+            }
             List<DoctorSchedule> schedules = scheduleService.getAllDoctorsSchedules(
-                    currentUser.getClinicId());
+                    effectiveClinicId);
 
             List<DoctorScheduleResponse> responses = schedules.stream()
                     .map(DoctorScheduleResponse::fromEntity)

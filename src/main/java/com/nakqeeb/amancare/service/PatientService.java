@@ -122,7 +122,7 @@ public class PatientService {
                     effectiveClinicId,
                     "PATIENT",
                     savedPatient.getId(),
-                    "Created patient: " + savedPatient.getFullName()
+                    "تم إنشاء المريض : " + savedPatient.getFullName()
             );
         }
 

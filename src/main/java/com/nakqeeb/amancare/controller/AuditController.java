@@ -192,9 +192,9 @@ public class AuditController {
     )
     public ResponseEntity<String> exportAuditLogs(
             @AuthenticationPrincipal UserPrincipal currentUser,
-            @Parameter(description = "تاريخ البداية", required = true)
+            @Parameter(description = "تاريخ البداية", example = "2025-08-23T00:00:00", required = true)
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDateTime startDate,
-            @Parameter(description = "تاريخ النهاية", required = true)
+            @Parameter(description = "تاريخ النهاية", example = "2025-09-15T00:00:00", required = true)
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDateTime endDate) {
 
         String csvContent = auditLogService.exportAuditLogsToCsv(startDate, endDate);

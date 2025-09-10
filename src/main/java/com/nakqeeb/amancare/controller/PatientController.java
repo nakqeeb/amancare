@@ -306,7 +306,8 @@ public class PatientController {
      * تحديث بيانات مريض
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
+    @SystemAdminContext
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
     @Operation(
             summary = "✏️ تحديث بيانات المريض",
             description = "تحديث بيانات مريض موجود (يتم تحديث الحقول المُرسلة فقط)",
@@ -355,7 +356,8 @@ public class PatientController {
      * حذف مريض (إلغاء تفعيل)
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR')")
+    @SystemAdminContext
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR')")
     @Operation(
             summary = "🗑️ حذف المريض",
             description = "حذف مريض (إلغاء تفعيل - لا يتم الحذف النهائي للحفاظ على السجلات)"
@@ -385,7 +387,8 @@ public class PatientController {
      * إعادة تفعيل مريض
      */
     @PostMapping("/{id}/reactivate")
-    @PreAuthorize("hasRole('ADMIN')")
+    @SystemAdminContext
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN')")
     @Operation(
             summary = "🔄 إعادة تفعيل المريض",
             description = "إعادة تفعيل مريض محذوف (مدير العيادة فقط)"

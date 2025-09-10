@@ -10,8 +10,11 @@ import com.nakqeeb.amancare.entity.UserRole;
 import com.nakqeeb.amancare.repository.UserRepository;
 import com.nakqeeb.amancare.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +34,7 @@ import java.util.List;
 @Tag(name = "👤 إدارة المستخدمين", description = "APIs الخاصة بالمستخدمين")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class UserController {
+    private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
     @Autowired
     private UserRepository userRepository;
@@ -40,7 +44,7 @@ public class UserController {
      * Get all doctors - simple solution without complications
      */
     @GetMapping("/doctors")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
     @Transactional(readOnly = true) // Keep session open for this method
     @Operation(
             summary = "👨‍⚕️ قائمة الأطباء",
@@ -52,10 +56,23 @@ public class UserController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ممنوع - صلاحيات غير كافية")
     })
     public ResponseEntity<ApiResponse<List<DoctorResponse>>> getDoctors(
-            @AuthenticationPrincipal UserPrincipal currentUser) {
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId) {
         try {
+            // For READ operations, SYSTEM_ADMIN doesn't need context
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                // SYSTEM_ADMIN can specify clinic or get all
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN reading all doctors from clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                // Other users can only see their clinic
+                effectiveClinicId = currentUser.getClinicId();
+            }
             List<User> doctors = userRepository.findByClinicIdAndRoleAndIsActiveTrue(
-                    currentUser.getClinicId(),
+                    effectiveClinicId,
                     UserRole.DOCTOR
             );
 
