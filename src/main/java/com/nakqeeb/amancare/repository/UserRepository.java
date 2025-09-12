@@ -50,6 +50,20 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByClinicAndIsActiveTrue(Clinic clinic);
 
     /**
+     * البحث عن جميع المستخدمين الذين لديهم دور ADMIN (أصحاب العيادات)
+     * Find all users with ADMIN role (clinic owners)
+     */
+    @Query("SELECT u FROM User u JOIN FETCH u.clinic WHERE u.role = 'ADMIN' AND u.isActive = true")
+    List<User> findAllAdminUsersWithClinics();
+
+    /**
+     * البحث عن جميع العيادات من خلال المستخدمين الذين لديهم دور ADMIN
+     * Find all clinics through users with ADMIN role
+     */
+    @Query("SELECT DISTINCT u.clinic FROM User u WHERE u.role = 'ADMIN' AND u.isActive = true")
+    List<Clinic> findAllClinicsFromAdmins();
+
+    /**
      * البحث عن المستخدمين حسب العيادة والدور
      */
     List<User> findByClinicAndRole(Clinic clinic, UserRole role);
