@@ -4,7 +4,9 @@
 
 package com.nakqeeb.amancare.repository;
 
+import com.nakqeeb.amancare.entity.BloodType;
 import com.nakqeeb.amancare.entity.Clinic;
+import com.nakqeeb.amancare.entity.Gender;
 import com.nakqeeb.amancare.entity.Patient;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -61,6 +63,26 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
     Page<Patient> findByClinicAndPhoneContaining(@Param("clinic") Clinic clinic,
                                                  @Param("phone") String phone,
                                                  Pageable pageable);
+
+    /**
+     * Enhanced search with multiple filters including gender, bloodType, and isActive
+     * البحث المحسن مع عدة فلاتر
+     */
+    @Query("SELECT p FROM Patient p WHERE p.clinic = :clinic " +
+            "AND (:search IS NULL OR :search = '' OR " +
+            "LOWER(p.firstName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "LOWER(p.lastName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "p.phone LIKE CONCAT('%', :search, '%') OR " +
+            "p.patientNumber LIKE CONCAT('%', :search, '%')) " +
+            "AND (:gender IS NULL OR p.gender = :gender) " +
+            "AND (:bloodType IS NULL OR p.bloodType = :bloodType) " +
+            "AND (:isActive IS NULL OR p.isActive = :isActive)")
+    Page<Patient> searchPatientsWithFilters(@Param("clinic") Clinic clinic,
+                                            @Param("search") String search,
+                                            @Param("gender") Gender gender,
+                                            @Param("bloodType") BloodType bloodType,
+                                            @Param("isActive") Boolean isActive,
+                                            Pageable pageable);
 
     /**
      * البحث الشامل في المرضى

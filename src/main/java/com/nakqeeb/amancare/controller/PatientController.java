@@ -8,6 +8,8 @@ import com.nakqeeb.amancare.annotation.SystemAdminContext;
 import com.nakqeeb.amancare.dto.request.CreatePatientRequest;
 import com.nakqeeb.amancare.dto.request.UpdatePatientRequest;
 import com.nakqeeb.amancare.dto.response.*;
+import com.nakqeeb.amancare.entity.BloodType;
+import com.nakqeeb.amancare.entity.Gender;
 import com.nakqeeb.amancare.entity.UserRole;
 import com.nakqeeb.amancare.security.UserPrincipal;
 import com.nakqeeb.amancare.service.ClinicContextService;
@@ -169,9 +171,78 @@ public class PatientController {
     }
 
     /**
-     * البحث في المرضى
+     * Enhanced search endpoint with multiple filters
+     * البحث المحسن في المرضى مع فلاتر متعددة
      */
     @GetMapping("/search")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
+    @Operation(
+            summary = "🔍 البحث المحسن في المرضى",
+            description = "البحث في المرضى بالاسم أو رقم الهاتف أو رقم المريض مع إمكانية التصفية حسب الجنس وفصيلة الدم والحالة"
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "تم البحث بنجاح"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "غير مصرح - يجب تسجيل الدخول"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ممنوع - صلاحيات غير كافية")
+    })
+    public ResponseEntity<ApiResponse<PatientPageResponse>> searchPatients(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId,
+
+            @Parameter(description = "كلمة البحث (الاسم، الهاتف، رقم المريض)", example = "محمد")
+            @RequestParam(required = false) String q,
+
+            @Parameter(description = "تصفية حسب الجنس")
+            @RequestParam(required = false) Gender gender,
+
+            @Parameter(description = "تصفية حسب فصيلة الدم")
+            @RequestParam(required = false) BloodType bloodType,
+
+            @Parameter(description = "تصفية حسب الحالة (نشط/غير نشط)")
+            @RequestParam(required = false) Boolean isActive,
+
+            @Parameter(description = "رقم الصفحة", example = "0")
+            @RequestParam(defaultValue = "0") int page,
+
+            @Parameter(description = "حجم الصفحة", example = "10")
+            @RequestParam(defaultValue = "10") int size) {
+
+        try {
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                effectiveClinicId = clinicId;
+                logger.info("SYSTEM_ADMIN searching patients from clinic: {} with filters - gender: {}, bloodType: {}, isActive: {}",
+                        clinicId != null ? clinicId : "ALL", gender, bloodType, isActive);
+            } else {
+                effectiveClinicId = currentUser.getClinicId();
+            }
+
+            // Call the enhanced search method
+            PatientPageResponse patients = patientService.searchPatients(
+                    effectiveClinicId, q, gender, bloodType, isActive, page, size
+            );
+
+            return ResponseEntity.ok(
+                    new ApiResponse<>(true, "تم البحث بنجاح", patients)
+            );
+        } catch (Exception e) {
+            logger.error("Error searching patients: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse<>(false, "فشل في البحث: " + e.getMessage(), null));
+        }
+    }
+
+
+    /**
+     * Legacy search endpoint - kept for backward compatibility
+     * نقطة النهاية القديمة للبحث - محفوظة للتوافق العكسي
+     */
+    /**
+     * البحث في المرضى
+     */
+    @GetMapping("/search/legacy")
     @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
     @Operation(
             summary = "🔍 البحث في المرضى",
@@ -182,7 +253,7 @@ public class PatientController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "غير مصرح - يجب تسجيل الدخول"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ممنوع - صلاحيات غير كافية")
     })
-    public ResponseEntity<ApiResponse<PatientPageResponse>> searchPatients(
+    public ResponseEntity<ApiResponse<PatientPageResponse>> searchPatientsLegacy(
             @AuthenticationPrincipal UserPrincipal currentUser,
             @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
             @RequestParam(required = false) Long clinicId,
@@ -204,7 +275,7 @@ public class PatientController {
                 // Other users can only see their clinic
                 effectiveClinicId = currentUser.getClinicId();
             }
-            PatientPageResponse patients = patientService.searchPatients(
+            PatientPageResponse patients = patientService.searchPatientsLegacy(
                     effectiveClinicId, q, page, size
             );
             return ResponseEntity.ok(

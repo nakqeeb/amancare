@@ -195,10 +195,60 @@ public class PatientService {
     }
 
     /**
+     * Enhanced search method with multiple filters
+     * البحث المحسن في المرضى مع فلاتر متعددة
+     */
+    @Transactional(readOnly = true)
+    public PatientPageResponse searchPatients(Long clinicId, String searchTerm,
+                                              Gender gender, BloodType bloodType,
+                                              Boolean isActive, int page, int size) {
+
+        logger.info("Searching patients - clinicId: {}, search: {}, gender: {}, bloodType: {}, isActive: {}",
+                clinicId, searchTerm, gender, bloodType, isActive);
+
+        Clinic clinic = clinicRepository.findById(clinicId)
+                .orElseThrow(() -> new ResourceNotFoundException("العيادة غير موجودة"));
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("firstName", "lastName"));
+
+        // Clean search term
+        String cleanSearchTerm = StringUtils.hasText(searchTerm) ? searchTerm.trim() : null;
+
+        // Use the new enhanced search method
+        Page<Patient> patientsPage = patientRepository.searchPatientsWithFilters(
+                clinic, cleanSearchTerm, gender, bloodType, isActive, pageable
+        );
+
+        List<PatientSummaryResponse> patientSummaries = patientsPage.getContent()
+                .stream()
+                .map(patient -> {
+                    PatientSummaryResponse summary = PatientSummaryResponse.fromPatient(patient);
+                    // Add extra information if needed
+                    summary.setGender(patient.getGender());
+                    summary.setBloodType(patient.getBloodType());
+                    summary.setIsActive(patient.getIsActive());
+                    return summary;
+                })
+                .collect(Collectors.toList());
+
+        logger.info("Found {} patients matching criteria", patientsPage.getTotalElements());
+
+        return new PatientPageResponse(
+                patientSummaries,
+                patientsPage.getTotalElements(),
+                patientsPage.getTotalPages(),
+                patientsPage.getNumber(),
+                patientsPage.getSize(),
+                patientsPage.hasPrevious(),
+                patientsPage.hasNext()
+        );
+    }
+
+    /**
      * البحث في المرضى
      */
     @Transactional(readOnly = true)
-    public PatientPageResponse searchPatients(Long clinicId, String searchTerm, int page, int size) {
+    public PatientPageResponse searchPatientsLegacy(Long clinicId, String searchTerm, int page, int size) {
         Clinic clinic = clinicRepository.findById(clinicId)
                 .orElseThrow(() -> new ResourceNotFoundException("العيادة غير موجودة"));
 
