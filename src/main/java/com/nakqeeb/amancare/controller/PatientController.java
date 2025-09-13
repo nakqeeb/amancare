@@ -105,7 +105,7 @@ public class PatientController {
             if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
                 ClinicContextService.ClinicContextInfo contextInfo =
                         clinicContextService.getCurrentContext(currentUser);
-                logger.info("SYSTEM_ADMIN context: Acting as clinic {} - Reason: {}",
+                logger.info("SYSTEM_ADMIN is creating a patient with clinic context. ActingClinicId: {}, Reason: {}",
                         contextInfo.getActingAsClinicId(), contextInfo.getReason());
             }
 
@@ -413,6 +413,13 @@ public class PatientController {
             @PathVariable Long id,
             @Valid @RequestBody UpdatePatientRequest request) {
         try {
+            // Log if SYSTEM_ADMIN is acting with context
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                ClinicContextService.ClinicContextInfo contextInfo =
+                        clinicContextService.getCurrentContext(currentUser);
+                logger.info("SYSTEM_ADMIN is updating a patient with clinic context. ActingClinicId: {}, Reason: {}",
+                        contextInfo.getActingAsClinicId(), contextInfo.getReason());
+            }
             PatientResponse patient = patientService.updatePatient(currentUser.getClinicId(), id, request);
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم تحديث بيانات المريض بنجاح", patient)
@@ -444,6 +451,13 @@ public class PatientController {
             @Parameter(description = "معرف المريض", example = "1")
             @PathVariable Long id) {
         try {
+            // Log if SYSTEM_ADMIN is acting with context
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                ClinicContextService.ClinicContextInfo contextInfo =
+                        clinicContextService.getCurrentContext(currentUser);
+                logger.info("SYSTEM_ADMIN is deactivating a patient with clinic context. ActingClinicId: {}, Reason: {}",
+                        contextInfo.getActingAsClinicId(), contextInfo.getReason());
+            }
             patientService.deletePatient(currentUser.getClinicId(), id);
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم حذف المريض بنجاح", null)
@@ -475,6 +489,13 @@ public class PatientController {
             @Parameter(description = "معرف المريض", example = "1")
             @PathVariable Long id) {
         try {
+            // Log if SYSTEM_ADMIN is acting with context
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                ClinicContextService.ClinicContextInfo contextInfo =
+                        clinicContextService.getCurrentContext(currentUser);
+                logger.info("SYSTEM_ADMIN is reactivating a patient with clinic context. ActingClinicId: {}, Reason: {}",
+                        contextInfo.getActingAsClinicId(), contextInfo.getReason());
+            }
             PatientResponse patient = patientService.reactivatePatient(currentUser.getClinicId(), id);
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم إعادة تفعيل المريض بنجاح", patient)

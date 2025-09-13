@@ -12,6 +12,7 @@ import com.nakqeeb.amancare.entity.AppointmentStatus;
 import com.nakqeeb.amancare.entity.UserRole;
 import com.nakqeeb.amancare.security.UserPrincipal;
 import com.nakqeeb.amancare.service.AppointmentService;
+import com.nakqeeb.amancare.service.ClinicContextService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -44,6 +45,9 @@ public class AppointmentController {
 
     @Autowired
     private AppointmentService appointmentService;
+
+    @Autowired
+    private ClinicContextService clinicContextService;
 
     /**
      * إنشاء موعد جديد
@@ -86,6 +90,13 @@ public class AppointmentController {
             @AuthenticationPrincipal UserPrincipal currentUser,
             @Valid @RequestBody CreateAppointmentRequest request) {
         try {
+            // Log if SYSTEM_ADMIN is acting with context
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                ClinicContextService.ClinicContextInfo contextInfo =
+                        clinicContextService.getCurrentContext(currentUser);
+                logger.info("SYSTEM_ADMIN is creating an appointment with clinic context. ActingClinicId: {}, Reason: {}",
+                        contextInfo.getActingAsClinicId(), contextInfo.getReason());
+            }
             AppointmentResponse appointment = appointmentService.createAppointment(
                     currentUser.getClinicId(), currentUser.getId(), request);
             return ResponseEntity.status(HttpStatus.CREATED)
@@ -323,6 +334,13 @@ public class AppointmentController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateAppointmentRequest request) {
         try {
+            // Log if SYSTEM_ADMIN is acting with context
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                ClinicContextService.ClinicContextInfo contextInfo =
+                        clinicContextService.getCurrentContext(currentUser);
+                logger.info("SYSTEM_ADMIN is updating an appointment with clinic context. ActingClinicId: {}, Reason: {}",
+                        contextInfo.getActingAsClinicId(), contextInfo.getReason());
+            }
             AppointmentResponse appointment = appointmentService.updateAppointment(
                     currentUser.getClinicId(), id, request);
             return ResponseEntity.ok(
@@ -358,6 +376,13 @@ public class AppointmentController {
             @Parameter(description = "الحالة الجديدة", example = "COMPLETED")
             @RequestParam AppointmentStatus status) {
         try {
+            // Log if SYSTEM_ADMIN is acting with context
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                ClinicContextService.ClinicContextInfo contextInfo =
+                        clinicContextService.getCurrentContext(currentUser);
+                logger.info("SYSTEM_ADMIN is updating an appointment status with clinic context. ActingClinicId: {}, Reason: {}",
+                        contextInfo.getActingAsClinicId(), contextInfo.getReason());
+            }
             AppointmentResponse appointment = appointmentService.updateAppointmentStatus(
                     currentUser.getClinicId(), id, status);
             return ResponseEntity.ok(
@@ -393,6 +418,13 @@ public class AppointmentController {
             @Parameter(description = "سبب الإلغاء", example = "المريض غير قادر على الحضور")
             @RequestParam(required = false) String reason) {
         try {
+            // Log if SYSTEM_ADMIN is acting with context
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                ClinicContextService.ClinicContextInfo contextInfo =
+                        clinicContextService.getCurrentContext(currentUser);
+                logger.info("SYSTEM_ADMIN is canceling an appointment with clinic context. ActingClinicId: {}, Reason: {}",
+                        contextInfo.getActingAsClinicId(), contextInfo.getReason());
+            }
             appointmentService.cancelAppointment(currentUser.getClinicId(), id, reason);
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم إلغاء الموعد بنجاح", null)
