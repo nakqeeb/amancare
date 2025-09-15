@@ -59,6 +59,7 @@ public class CreatePatientRequest {
     private String emergencyContactName;
 
     @Schema(description = "رقم جهة الاتصال في حالات الطوارئ", example = "773456789")
+    @ValidYemeniPhone(message = "رقم الهاتف يجب أن يكون رقماً يمنياً صحيحاً")
     private String emergencyContactPhone;
 
     @Schema(description = "فصيلة الدم", example = "O_POSITIVE")

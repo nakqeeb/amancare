@@ -1,22 +1,56 @@
 package com.nakqeeb.amancare.dto.request;
 
+import com.nakqeeb.amancare.validation.ValidYemeniPhone;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
 /**
  * طلب تسجيل عيادة جديدة
  */
 public class ClinicRegistrationRequest {
     // بيانات العيادة
+
+    @NotBlank(message = "اسم العيادة مطلوب")
     private String clinicName;
+
+    @NotBlank(message = "وصف العيادة مطلوب")
     private String clinicDescription;
+
+    @NotBlank(message = "عنوان العيادة مطلوب")
     private String clinicAddress;
+
+    @NotBlank(message = "رقم الهاتف مطلوب")
+    @ValidYemeniPhone(message = "رقم الهاتف يجب أن يكون رقماً يمنياً صحيحاً")
     private String clinicPhone;
+
+    @NotBlank(message = "البريد الإلكتروني للعيادة مطلوب")
+    @Email(message = "صيغة البريد الإلكتروني غير صحيحة")
     private String clinicEmail;
 
     // بيانات مدير العيادة
+    @NotBlank(message = "اسم المستخدم لمدير العيادة مطلوب")
+    @Size(min = 3, max = 50, message = "اسم المستخدم لمدير العيادة يجب أن يكون بين 3 و 50 حرفاً")
     private String adminUsername;
+
+    @NotBlank(message = "البريد الإلكتروني لمدير العيادة مطلوب")
+    @Email(message = "صيغة البريد الإلكتروني غير صحيحة")
     private String adminEmail;
+
+    @NotBlank(message = "كلمة المرور مطلوبة")
+    @Size(min = 6, message = "كلمة المرور يجب أن تكون على الأقل 6 أحرف")
     private String adminPassword;
+
+    @NotBlank(message = "الاسم الأول مطلوب")
+    @Size(min = 2, max = 50, message = "الاسم الأول يجب أن يكون بين 2 و 50 حرفاً")
     private String adminFirstName;
+
+    @NotBlank(message = "الاسم الأخير مطلوب")
+    @Size(min = 2, max = 50, message = "الاسم الأخير يجب أن يكون بين 2 و 50 حرفاً")
     private String adminLastName;
+
+    @NotBlank(message = "رقم الهاتف مطلوب")
+    @ValidYemeniPhone(message = "رقم الهاتف يجب أن يكون رقماً يمنياً صحيحاً")
     private String adminPhone;
 
     // Constructors
