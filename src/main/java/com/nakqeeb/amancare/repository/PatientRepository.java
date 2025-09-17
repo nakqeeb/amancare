@@ -121,23 +121,87 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
      */
     boolean existsByClinicAndPatientNumber(Clinic clinic, String patientNumber);
 
+    // ===================================================================
+    // ENHANCED STATISTICS QUERIES - FIXED AND COMPLETE
+    // ===================================================================
+
     /**
-     * إحصائيات المرضى
+     * Count ALL patients in clinic (both active and inactive)
+     */
+    @Query("SELECT COUNT(p) FROM Patient p WHERE p.clinic = :clinic")
+    long countAllPatientsByClinic(@Param("clinic") Clinic clinic);
+
+    /**
+     * Count only ACTIVE patients in clinic
      */
     @Query("SELECT COUNT(p) FROM Patient p WHERE p.clinic = :clinic AND p.isActive = true")
     long countActivePatientsByClinic(@Param("clinic") Clinic clinic);
 
     /**
-     * المرضى الذين تم إنشاؤهم خلال فترة
+     * Count only INACTIVE patients in clinic
      */
-//    @Query("SELECT COUNT(p) FROM Patient p WHERE p.clinic = :clinic AND " +
-//            "p.createdAt BETWEEN :startDate AND :endDate")
-//    long countPatientsCreatedBetween(@Param("clinic") Clinic clinic,
-//                                     @Param("startDate") LocalDate startDate,
-//                                     @Param("endDate") LocalDate endDate);
+    @Query("SELECT COUNT(p) FROM Patient p WHERE p.clinic = :clinic AND p.isActive = false")
+    long countInactivePatientsByClinic(@Param("clinic") Clinic clinic);
+
+    /**
+     * Count new patients created between dates
+     */
     @Query("SELECT COUNT(p) FROM Patient p WHERE p.clinic = :clinic AND " +
             "p.createdAt >= :startDateTime AND p.createdAt <= :endDateTime")
     long countPatientsCreatedBetween(@Param("clinic") Clinic clinic,
                                      @Param("startDateTime") LocalDateTime startDateTime,
                                      @Param("endDateTime") LocalDateTime endDateTime);
+
+    /**
+     * Count MALE patients in clinic
+     */
+    @Query("SELECT COUNT(p) FROM Patient p WHERE p.clinic = :clinic AND p.gender = 'MALE'")
+    long countMalePatientsByClinic(@Param("clinic") Clinic clinic);
+
+    /**
+     * Count FEMALE patients in clinic
+     */
+    @Query("SELECT COUNT(p) FROM Patient p WHERE p.clinic = :clinic AND p.gender = 'FEMALE'")
+    long countFemalePatientsByClinic(@Param("clinic") Clinic clinic);
+
+    /**
+     * Calculate average age of all patients in clinic
+     */
+    @Query("SELECT AVG(YEAR(CURRENT_DATE) - YEAR(p.dateOfBirth)) FROM Patient p " +
+            "WHERE p.clinic = :clinic AND p.dateOfBirth IS NOT NULL")
+    Double calculateAverageAgeByClinic(@Param("clinic") Clinic clinic);
+
+    /**
+     * Count patients with appointments today
+     */
+    @Query("SELECT COUNT(DISTINCT a.patient) FROM Appointment a " +
+            "WHERE a.clinic = :clinic " +
+            "AND DATE(a.appointmentDate) = CURRENT_DATE " +
+            "AND a.status NOT IN ('CANCELLED', 'NO_SHOW')")
+    long countPatientsWithAppointmentsToday(@Param("clinic") Clinic clinic);
+
+    /**
+     * Count patients with pending (unpaid) invoices
+     */
+    @Query("SELECT COUNT(DISTINCT i.patient) FROM Invoice i " +
+            "WHERE i.patient.clinic = :clinic " +
+            "AND i.status IN ('PENDING', 'PARTIALLY_PAID')")
+    long countPatientsWithPendingInvoices(@Param("clinic") Clinic clinic);
+
+    /**
+     * Calculate total outstanding balance for all patients in clinic
+     */
+    @Query("SELECT COALESCE(SUM(i.balanceDue), 0) FROM Invoice i " +
+            "WHERE i.patient.clinic = :clinic " +
+            "AND i.status IN ('PENDING', 'PARTIALLY_PAID')")
+    Double calculateTotalOutstandingBalance(@Param("clinic") Clinic clinic);
+
+    /**
+     * Count patients by blood type in clinic
+     */
+    @Query("SELECT p.bloodType, COUNT(p) FROM Patient p " +
+            "WHERE p.clinic = :clinic AND p.bloodType IS NOT NULL " +
+            "GROUP BY p.bloodType")
+    List<Object[]> countPatientsByBloodType(@Param("clinic") Clinic clinic);
+
 }

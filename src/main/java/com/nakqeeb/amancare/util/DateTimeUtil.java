@@ -6,6 +6,7 @@ package com.nakqeeb.amancare.util;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 
@@ -46,6 +47,8 @@ public class DateTimeUtil {
 
     /**
      * الحصول على بداية اليوم
+     * @param date the date
+     * @return LocalDateTime at the start of the day
      */
     public static LocalDateTime getStartOfDay(LocalDate date) {
         return date.atStartOfDay();
@@ -53,9 +56,45 @@ public class DateTimeUtil {
 
     /**
      * الحصول على نهاية اليوم
+     * @param date the date
+     * @return LocalDateTime at the end of the day
      */
     public static LocalDateTime getEndOfDay(LocalDate date) {
         return date.atTime(23, 59, 59);
+    }
+
+    /**
+     * Get the start of current day
+     * @return LocalDateTime at the start of today
+     */
+    public static LocalDateTime getStartOfToday() {
+        return LocalDate.now().atStartOfDay();
+    }
+
+    /**
+     * Get the end of current day
+     * @return LocalDateTime at the end of today
+     */
+    public static LocalDateTime getEndOfToday() {
+        return LocalDate.now().atTime(LocalTime.MAX);
+    }
+
+    /**
+     * Get the start of a month
+     * @param date any date in the month
+     * @return LocalDateTime at the start of the first day of the month
+     */
+    public static LocalDateTime getStartOfMonth(LocalDate date) {
+        return date.withDayOfMonth(1).atStartOfDay();
+    }
+
+    /**
+     * Get the end of a month
+     * @param date any date in the month
+     * @return LocalDateTime at the end of the last day of the month
+     */
+    public static LocalDateTime getEndOfMonth(LocalDate date) {
+        return date.withDayOfMonth(date.lengthOfMonth()).atTime(LocalTime.MAX);
     }
 
     /**

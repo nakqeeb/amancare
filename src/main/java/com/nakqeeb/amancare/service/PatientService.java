@@ -280,15 +280,22 @@ public class PatientService {
     /**
      * تحديث بيانات مريض
      */
-    public PatientResponse updatePatient(Long clinicId, Long patientId, UpdatePatientRequest request) {
-        Clinic clinic = clinicRepository.findById(clinicId)
+    public PatientResponse updatePatient(UserPrincipal currentUser, Long patientId, UpdatePatientRequest request) {
+        // Get effective clinic ID - this will throw exception if SYSTEM_ADMIN has no context
+        Long effectiveClinicId = clinicContextService.getEffectiveClinicId(currentUser);
+
+        logger.info("Updating patient in clinic {} by user {}",
+                effectiveClinicId, currentUser.getUsername());
+
+        // التحقق من وجود العيادة
+        Clinic clinic = clinicRepository.findById(effectiveClinicId)
                 .orElseThrow(() -> new ResourceNotFoundException("العيادة غير موجودة"));
 
         Patient patient = patientRepository.findById(patientId)
                 .orElseThrow(() -> new ResourceNotFoundException("المريض غير موجود"));
 
         // التأكد من أن المريض ينتمي لهذه العيادة
-        if (!patient.getClinic().getId().equals(clinicId)) {
+        if (!patient.getClinic().getId().equals(effectiveClinicId)) {
             throw new ResourceNotFoundException("المريض غير موجود في هذه العيادة");
         }
 
@@ -311,12 +318,22 @@ public class PatientService {
     /**
      * حذف مريض (إلغاء تفعيل)
      */
-    public void deletePatient(Long clinicId, Long patientId) {
+    public void deletePatient(UserPrincipal currentUser, Long patientId) {
+        // Get effective clinic ID - this will throw exception if SYSTEM_ADMIN has no context
+        Long effectiveClinicId = clinicContextService.getEffectiveClinicId(currentUser);
+
+        logger.info("Deleting patient in clinic {} by user {}",
+                effectiveClinicId, currentUser.getUsername());
+
+        // التحقق من وجود العيادة
+        Clinic clinic = clinicRepository.findById(effectiveClinicId)
+                .orElseThrow(() -> new ResourceNotFoundException("العيادة غير موجودة"));
+
         Patient patient = patientRepository.findById(patientId)
                 .orElseThrow(() -> new ResourceNotFoundException("المريض غير موجود"));
 
         // التأكد من أن المريض ينتمي لهذه العيادة
-        if (!patient.getClinic().getId().equals(clinicId)) {
+        if (!patient.getClinic().getId().equals(clinic.getId())) {
             throw new ResourceNotFoundException("المريض غير موجود في هذه العيادة");
         }
 
@@ -328,12 +345,23 @@ public class PatientService {
     /**
      * إعادة تفعيل مريض
      */
-    public PatientResponse reactivatePatient(Long clinicId, Long patientId) {
+    public PatientResponse reactivatePatient(UserPrincipal currentUser, Long patientId) {
+        // Get effective clinic ID - this will throw exception if SYSTEM_ADMIN has no context
+        Long effectiveClinicId = clinicContextService.getEffectiveClinicId(currentUser);
+
+        logger.info("Reactivating patient in clinic {} by user {}",
+                effectiveClinicId, currentUser.getUsername());
+
+        // التحقق من وجود العيادة
+        Clinic clinic = clinicRepository.findById(effectiveClinicId)
+                .orElseThrow(() -> new ResourceNotFoundException("العيادة غير موجودة"));
+
+
         Patient patient = patientRepository.findById(patientId)
                 .orElseThrow(() -> new ResourceNotFoundException("المريض غير موجود"));
 
         // التأكد من أن المريض ينتمي لهذه العيادة
-        if (!patient.getClinic().getId().equals(clinicId)) {
+        if (!patient.getClinic().getId().equals(clinic.getId())) {
             throw new ResourceNotFoundException("المريض غير موجود في هذه العيادة");
         }
 
@@ -343,41 +371,137 @@ public class PatientService {
     }
 
     /**
-     * الحصول على إحصائيات المرضى
+     * الحصول على إحصائيات المرضى - COMPLETE IMPLEMENTATION
+     * Get complete patient statistics for a clinic (including Appointment/Invoice)
      */
-//    @Transactional(readOnly = true)
-//    public PatientStatistics getPatientStatistics(Long clinicId) {
-//        Clinic clinic = clinicRepository.findById(clinicId)
-//                .orElseThrow(() -> new ResourceNotFoundException("العيادة غير موجودة"));
-//
-//        long totalPatients = patientRepository.countActivePatientsByClinic(clinic);
-//
-//        LocalDate oneMonthAgo = LocalDate.now().minusMonths(1);
-//        long newPatientsThisMonth = patientRepository.countPatientsCreatedBetween(
-//                clinic, oneMonthAgo, LocalDate.now()
-//        );
-//
-//        return new PatientStatistics(totalPatients, newPatientsThisMonth);
-//    }
-    @Transactional(readOnly = true)
+    /*@Transactional(readOnly = true)
     public PatientStatistics getPatientStatistics(Long clinicId) {
         Clinic clinic = clinicRepository.findById(clinicId)
                 .orElseThrow(() -> new ResourceNotFoundException("العيادة غير موجودة"));
 
-        long totalPatients = patientRepository.countActivePatientsByClinic(clinic);
+        // 1. Count ALL patients (both active and inactive)
+        long totalPatients = patientRepository.countAllPatientsByClinic(clinic);
 
-        // Convert LocalDate to LocalDateTime range for proper comparison
+        // 2. Count active patients
+        long activePatients = patientRepository.countActivePatientsByClinic(clinic);
+
+        // 3. Count inactive patients
+        long inactivePatients = patientRepository.countInactivePatientsByClinic(clinic);
+
+        // 4. Count new patients this month
         LocalDate oneMonthAgo = LocalDate.now().minusMonths(1);
         LocalDate today = LocalDate.now();
-
         LocalDateTime startDateTime = DateTimeUtil.getStartOfDay(oneMonthAgo);
         LocalDateTime endDateTime = DateTimeUtil.getEndOfDay(today);
 
         long newPatientsThisMonth = patientRepository.countPatientsCreatedBetween(
-                clinic, startDateTime, endDateTime
-        );
+                clinic, startDateTime, endDateTime);
 
-        return new PatientStatistics(totalPatients, newPatientsThisMonth);
+        // 5. Count male patients
+        long malePatients = patientRepository.countMalePatientsByClinic(clinic);
+
+        // 6. Count female patients
+        long femalePatients = patientRepository.countFemalePatientsByClinic(clinic);
+
+        // 7. Calculate average age
+        Double averageAge = patientRepository.calculateAverageAgeByClinic(clinic);
+        double avgAge = (averageAge != null) ? averageAge : 0.0;
+
+        // 8. Count patients with appointments today
+        long patientsWithAppointmentsToday = 0;
+        try {
+            patientsWithAppointmentsToday = patientRepository.countPatientsWithAppointmentsToday(clinic);
+        } catch (Exception e) {
+            // If appointments table doesn't exist or error occurs, keep it as 0
+            log.warn("Could not count patients with appointments today: {}", e.getMessage());
+        }
+
+        // 9. Count patients with pending invoices
+        long patientsWithPendingInvoices = 0;
+        try {
+            patientsWithPendingInvoices = patientRepository.countPatientsWithPendingInvoices(clinic);
+        } catch (Exception e) {
+            // If invoices table doesn't exist or error occurs, keep it as 0
+            log.warn("Could not count patients with pending invoices: {}", e.getMessage());
+        }
+
+        // 10. Calculate total outstanding balance
+        Double totalOutstandingBalance = 0.0;
+        try {
+            Double balance = patientRepository.calculateTotalOutstandingBalance(clinic);
+            totalOutstandingBalance = (balance != null) ? balance : 0.0;
+        } catch (Exception e) {
+            // If invoices table doesn't exist or error occurs, keep it as 0
+            log.warn("Could not calculate total outstanding balance: {}", e.getMessage());
+        }
+
+        // Build and return complete statistics using Builder pattern
+        PatientStatistics statistics = new PatientStatistics.Builder()
+                .totalPatients(totalPatients)
+                .activePatients(activePatients)
+                .inactivePatients(inactivePatients)
+                .newPatientsThisMonth(newPatientsThisMonth)
+                .malePatients(malePatients)
+                .femalePatients(femalePatients)
+                .averageAge(avgAge)
+                .patientsWithAppointmentsToday(patientsWithAppointmentsToday)
+                .patientsWithPendingInvoices(patientsWithPendingInvoices)
+                .totalOutstandingBalance(totalOutstandingBalance)
+                .build();
+
+        log.info("Patient statistics for clinic {}: Total={}, Active={}, Inactive={}, Male={}, Female={}, " +
+                        "New This Month={}, Avg Age={}, Appointments Today={}, Pending Invoices={}, Outstanding={}",
+                clinicId, totalPatients, activePatients, inactivePatients, malePatients, femalePatients,
+                newPatientsThisMonth, avgAge, patientsWithAppointmentsToday,
+                patientsWithPendingInvoices, totalOutstandingBalance);
+
+        return statistics;
+    }
+    */
+
+    /**
+     * Alternative simpler implementation if you don't have Appointment/Invoice entities yet
+     * This version only calculates patient-specific statistics
+     */
+    @Transactional(readOnly = true)
+    public PatientStatistics getPatientStatisticsSimple(Long clinicId) {
+        Clinic clinic = clinicRepository.findById(clinicId)
+                .orElseThrow(() -> new ResourceNotFoundException("العيادة غير موجودة"));
+
+        // Basic statistics that don't require other entities
+        long totalPatients = patientRepository.countAllPatientsByClinic(clinic);
+        long activePatients = patientRepository.countActivePatientsByClinic(clinic);
+        long inactivePatients = patientRepository.countInactivePatientsByClinic(clinic);
+
+        // New patients this month
+        LocalDate oneMonthAgo = LocalDate.now().minusMonths(1);
+        LocalDate today = LocalDate.now();
+        LocalDateTime startDateTime = DateTimeUtil.getStartOfDay(oneMonthAgo);
+        LocalDateTime endDateTime = DateTimeUtil.getEndOfDay(today);
+        long newPatientsThisMonth = patientRepository.countPatientsCreatedBetween(
+                clinic, startDateTime, endDateTime);
+
+        // Gender statistics
+        long malePatients = patientRepository.countMalePatientsByClinic(clinic);
+        long femalePatients = patientRepository.countFemalePatientsByClinic(clinic);
+
+        // Average age
+        Double averageAge = patientRepository.calculateAverageAgeByClinic(clinic);
+        double avgAge = (averageAge != null) ? averageAge : 0.0;
+
+        // Create statistics object
+        return new PatientStatistics.Builder()
+                .totalPatients(totalPatients)
+                .activePatients(activePatients)
+                .inactivePatients(inactivePatients)
+                .newPatientsThisMonth(newPatientsThisMonth)
+                .malePatients(malePatients)
+                .femalePatients(femalePatients)
+                .averageAge(avgAge)
+                .patientsWithAppointmentsToday(0) // Set to 0 if not available
+                .patientsWithPendingInvoices(0)   // Set to 0 if not available
+                .totalOutstandingBalance(0.0)     // Set to 0 if not available
+                .build();
     }
 
     /**

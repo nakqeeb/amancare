@@ -420,7 +420,7 @@ public class PatientController {
                 logger.info("SYSTEM_ADMIN is updating a patient with clinic context. ActingClinicId: {}, Reason: {}",
                         contextInfo.getActingAsClinicId(), contextInfo.getReason());
             }
-            PatientResponse patient = patientService.updatePatient(currentUser.getClinicId(), id, request);
+            PatientResponse patient = patientService.updatePatient(currentUser, id, request);
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم تحديث بيانات المريض بنجاح", patient)
             );
@@ -458,7 +458,7 @@ public class PatientController {
                 logger.info("SYSTEM_ADMIN is deactivating a patient with clinic context. ActingClinicId: {}, Reason: {}",
                         contextInfo.getActingAsClinicId(), contextInfo.getReason());
             }
-            patientService.deletePatient(currentUser.getClinicId(), id);
+            patientService.deletePatient(currentUser, id);
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم حذف المريض بنجاح", null)
             );
@@ -496,7 +496,7 @@ public class PatientController {
                 logger.info("SYSTEM_ADMIN is reactivating a patient with clinic context. ActingClinicId: {}, Reason: {}",
                         contextInfo.getActingAsClinicId(), contextInfo.getReason());
             }
-            PatientResponse patient = patientService.reactivatePatient(currentUser.getClinicId(), id);
+            PatientResponse patient = patientService.reactivatePatient(currentUser, id);
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم إعادة تفعيل المريض بنجاح", patient)
             );
@@ -606,7 +606,7 @@ public class PatientController {
                 // Other users can only see their clinic
                 effectiveClinicId = currentUser.getClinicId();
             }
-            PatientStatistics statistics = patientService.getPatientStatistics(effectiveClinicId);
+            PatientStatistics statistics = patientService.getPatientStatisticsSimple(effectiveClinicId);
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم الحصول على الإحصائيات بنجاح", statistics)
             );
