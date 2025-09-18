@@ -98,7 +98,7 @@ public class AppointmentController {
                         contextInfo.getActingAsClinicId(), contextInfo.getReason());
             }
             AppointmentResponse appointment = appointmentService.createAppointment(
-                    currentUser.getClinicId(), currentUser.getId(), request);
+                    currentUser, currentUser.getId(), request);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(new ApiResponse<>(true, "تم إنشاء الموعد بنجاح", appointment));
         } catch (Exception e) {

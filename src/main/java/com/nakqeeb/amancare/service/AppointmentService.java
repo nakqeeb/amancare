@@ -4,6 +4,7 @@
 
 package com.nakqeeb.amancare.service;
 
+import com.nakqeeb.amancare.controller.PatientController;
 import com.nakqeeb.amancare.dto.request.CreateAppointmentRequest;
 import com.nakqeeb.amancare.dto.request.UpdateAppointmentRequest;
 import com.nakqeeb.amancare.dto.response.AppointmentPageResponse;
@@ -15,6 +16,9 @@ import com.nakqeeb.amancare.exception.BadRequestException;
 import com.nakqeeb.amancare.exception.ConflictException;
 import com.nakqeeb.amancare.exception.ResourceNotFoundException;
 import com.nakqeeb.amancare.repository.*;
+import com.nakqeeb.amancare.security.UserPrincipal;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -35,6 +39,7 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class AppointmentService {
+    private static final Logger logger = LoggerFactory.getLogger(AppointmentService.class);
 
     @Autowired
     private AppointmentRepository appointmentRepository;
@@ -48,19 +53,28 @@ public class AppointmentService {
     @Autowired
     private ClinicRepository clinicRepository;
 
+    @Autowired
+    private ClinicContextService clinicContextService;
+
     /**
      * إنشاء موعد جديد
      */
-    public AppointmentResponse createAppointment(Long clinicId, Long currentUserId, CreateAppointmentRequest request) {
+    public AppointmentResponse createAppointment(UserPrincipal currentUser, Long currentUserId, CreateAppointmentRequest request) {
+        // Get effective clinic ID - this will throw exception if SYSTEM_ADMIN has no context
+        Long effectiveClinicId = clinicContextService.getEffectiveClinicId(currentUser);
+
+        logger.info("Creating patient in clinic {} by user {}",
+                effectiveClinicId, currentUser.getUsername());
+
         // التحقق من وجود العيادة
-        Clinic clinic = clinicRepository.findById(clinicId)
+        Clinic clinic = clinicRepository.findById(effectiveClinicId)
                 .orElseThrow(() -> new ResourceNotFoundException("العيادة غير موجودة"));
 
         // التحقق من وجود المريض وانتماؤه للعيادة
         Patient patient = patientRepository.findById(request.getPatientId())
                 .orElseThrow(() -> new ResourceNotFoundException("المريض غير موجود"));
 
-        if (!patient.getClinic().getId().equals(clinicId)) {
+        if (!patient.getClinic().getId().equals(effectiveClinicId)) {
             throw new BadRequestException("المريض لا ينتمي لهذه العيادة");
         }
 
@@ -68,7 +82,7 @@ public class AppointmentService {
         User doctor = userRepository.findById(request.getDoctorId())
                 .orElseThrow(() -> new ResourceNotFoundException("الطبيب غير موجود"));
 
-        if (!doctor.getClinic().getId().equals(clinicId)) {
+        if (!doctor.getClinic().getId().equals(effectiveClinicId)) {
             throw new BadRequestException("الطبيب لا ينتمي لهذه العيادة");
         }
 
@@ -77,7 +91,7 @@ public class AppointmentService {
         }
 
         // التحقق من المستخدم الحالي
-        User currentUser = userRepository.findById(currentUserId)
+        User user = userRepository.findById(currentUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("المستخدم الحالي غير موجود"));
 
         // التحقق من صحة التاريخ والوقت
@@ -98,7 +112,7 @@ public class AppointmentService {
         appointment.setAppointmentType(request.getAppointmentType());
         appointment.setChiefComplaint(request.getChiefComplaint());
         appointment.setNotes(request.getNotes());
-        appointment.setCreatedBy(currentUser);
+        appointment.setCreatedBy(user);
         appointment.setStatus(AppointmentStatus.SCHEDULED);
 
         Appointment savedAppointment = appointmentRepository.save(appointment);
