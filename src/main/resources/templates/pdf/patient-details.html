@@ -249,6 +249,17 @@
             background: #ffc107;
         }
 
+
+        .label-medical-cell {
+            text-align: right;
+            font-weight: bold;
+            color: #7f8c8d;
+            padding: 10px;
+            background: white;
+            border: 1px solid #eaeaea;
+            border-radius: 4px;
+        }
+
         .medical-text {
             background: white;
             padding: 15px;
@@ -397,17 +408,17 @@
         <span class="section-text">المعلومات الطبية</span>
     </div>
     <div>
-        <div class="label-cell">الحساسيات:</div>
+        <div class="label-medical-cell">الحساسيات:</div>
         <div class="medical-text" th:text="${allergies}"></div>
     </div>
     <div class="spacer"></div>
     <div>
-        <div class="label-cell">الأمراض المزمنة:</div>
+        <div class="label-medical-cell">الأمراض المزمنة:</div>
         <div class="medical-text" th:text="${chronicDiseases}"></div>
     </div>
     <div class="spacer"></div>
     <div th:if="${notes != '-'}">
-        <div class="label-cell">ملاحظات:</div>
+        <div class="label-medical-cell">ملاحظات:</div>
         <div class="medical-text" th:text="${notes}"></div>
     </div>
 </div>
