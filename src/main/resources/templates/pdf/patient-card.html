@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8"/>
+    <title>بطاقة المريض - [[${fullName}]]</title>
+    <style>
+        body {
+            font-family: 'Noto Sans Arabic', 'Arial', sans-serif;
+            direction: rtl;
+            text-align: right;
+            color: #2c3e50;
+            background: white;
+            font-size: 14px;
+            padding: 15px;
+        }
+
+        .card-container {
+            width: 100%;
+            max-width: 700px;
+            margin: 0 auto;
+            border: 1px solid #dcdcdc;
+            border-radius: 10px;
+            background: white;
+        }
+
+        .card-header {
+            background-color: #3498db;
+            padding: 15px;
+            color: white;
+            display: table;
+            width: 100%;
+        }
+
+        .logo-container {
+            display: table-cell;
+            vertical-align: middle;
+            width: 70px;
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            background: white;
+            border-radius: 6px;
+            padding: 5px;
+            border: 1px solid #dcdcdc;
+        }
+
+        .header-content {
+            display: table-cell;
+            vertical-align: middle;
+            text-align: right;
+            padding-right: 15px;
+        }
+
+        .company-name {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .company-name-en {
+            font-size: 12px;
+        }
+
+        .patient-number-container {
+            display: table-cell;
+            vertical-align: middle;
+            text-align: left;
+        }
+
+        .patient-number {
+            background: #2c3e50;
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        .patient-name {
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .info-grid {
+            display: table;
+            width: 100%;
+            border-spacing: 0 10px;
+            margin-bottom: 15px;
+        }
+
+        .info-row {
+            display: table-row;
+        }
+
+        .info-item {
+            display: table-cell;
+            width: 50%;
+            vertical-align: top;
+            padding: 10px;
+            background: #f8f8f8;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+        }
+
+        .info-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            display: block;
+            margin-bottom: 3px;
+        }
+
+        .info-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .emergency-section {
+            margin-top: 15px;
+            padding: 15px;
+            background: #fff8e1;
+            border: 1px solid #f0d68c;
+            border-radius: 6px;
+        }
+
+        .emergency-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #b37400;
+            margin-bottom: 10px;
+        }
+
+        .emergency-info {
+            display: table;
+            width: 100%;
+            border-spacing: 0 8px;
+        }
+
+        .emergency-row {
+            display: table-row;
+        }
+
+        .emergency-item {
+            display: table-cell;
+            width: 50%;
+            vertical-align: top;
+            padding: 5px;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 12px;
+            color: #7f8c8d;
+            font-size: 11px;
+            border-top: 1px solid #e0e0e0;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+<div class="card-container">
+    <!-- Card Header -->
+    <div class="card-header">
+        <div class="logo-container">
+            <img th:if="${companyLogo}" th:src="${companyLogo}" alt="Logo" class="logo"/>
+        </div>
+        <div class="header-content">
+            <div class="company-name" th:text="${companyName}">اسم الشركة</div>
+            <div class="company-name-en" th:text="${companyNameEn}">Company Name</div>
+        </div>
+        <div class="patient-number-container">
+            <span class="patient-number" th:text="'رقم المريض: #' + ${patientNumber}"></span>
+        </div>
+    </div>
+
+    <!-- Card Body -->
+    <div class="card-body">
+        <div class="patient-name" th:text="${fullName}">اسم المريض</div>
+
+        <!-- Patient Information -->
+        <div class="info-grid">
+            <div class="info-row">
+                <div class="info-item">
+                    <span class="info-label">العمر</span>
+                    <span class="info-value" th:text="${age}">--</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">الجنس</span>
+                    <span class="info-value" th:text="${genderArabic}">--</span>
+                </div>
+            </div>
+            <div class="info-row">
+                <div class="info-item">
+                    <span class="info-label">فصيلة الدم</span>
+                    <span class="info-value" th:text="${bloodTypeArabic}">--</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">رقم الهاتف</span>
+                    <span class="info-value" th:text="${phone}">--</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Emergency Contact -->
+        <div class="emergency-section" th:if="${emergencyContactName != '-'}">
+            <div class="emergency-title">جهة الاتصال الطارئ</div>
+            <div class="emergency-info">
+                <div class="emergency-row">
+                    <div class="emergency-item">
+                        <span class="info-label">الاسم</span>
+                        <span class="info-value" th:text="${emergencyContactName}">--</span>
+                    </div>
+                    <div class="emergency-item">
+                        <span class="info-label">رقم الهاتف</span>
+                        <span class="info-value" th:text="${emergencyContactPhone}">--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div>نظام أمان كير لإدارة العيادات الطبية</div>
+            <div>© جميع الحقوق محفوظة</div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

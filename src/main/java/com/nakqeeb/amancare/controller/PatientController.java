@@ -11,9 +11,11 @@ import com.nakqeeb.amancare.dto.response.*;
 import com.nakqeeb.amancare.entity.BloodType;
 import com.nakqeeb.amancare.entity.Gender;
 import com.nakqeeb.amancare.entity.UserRole;
+import com.nakqeeb.amancare.exception.ResourceNotFoundException;
 import com.nakqeeb.amancare.security.UserPrincipal;
 import com.nakqeeb.amancare.service.ClinicContextService;
 import com.nakqeeb.amancare.service.PatientService;
+import com.nakqeeb.amancare.service.PdfService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -24,13 +26,18 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * وحدة التحكم بالمرضى
@@ -47,6 +54,9 @@ public class PatientController {
 
     @Autowired
     private ClinicContextService clinicContextService;
+
+    @Autowired
+    private PdfService pdfService;
 
     /**
      * إنشاء مريض جديد
@@ -654,5 +664,193 @@ public class PatientController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse<>(false, "فشل في الحصول على مرضى اليوم: " + e.getMessage(), null));
         }
+    }
+
+    /**
+     * تصدير تفاصيل المريض كـ PDF
+     * Export patient details as PDF
+     */
+    @GetMapping("/{id}/export/pdf")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST')")
+    @Operation(
+            summary = "📄 تصدير تفاصيل المريض PDF",
+            description = """
+        تصدير تفاصيل المريض الكاملة في ملف PDF مع دعم اللغة العربية
+        - تصميم احترافي مع شعار الشركة
+        - دعم كامل للغة العربية و RTL
+        - معلومات المريض الكاملة
+        """,
+            responses = {
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "200",
+                            description = "تم تصدير PDF بنجاح",
+                            content = @Content(mediaType = "application/pdf")
+                    ),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "404",
+                            description = "المريض غير موجود"
+                    )
+            }
+    )
+    public ResponseEntity<byte[]> exportPatientDetailsPdf(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId) {
+
+        logger.info("Exporting patient {} details as PDF by user {}", id, currentUser.getUsername());
+
+        try {
+            // For READ operations, SYSTEM_ADMIN doesn't need context
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                // SYSTEM_ADMIN can specify clinic or get all
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN Exporting patient details from clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                // Other users can only see their clinic
+                effectiveClinicId = currentUser.getClinicId();
+            }
+
+            // Fetch patient details
+            PatientResponse patient = patientService.getPatientById(effectiveClinicId, id);
+
+            // Generate PDF
+            byte[] pdfContent = pdfService.generatePatientDetailsPdf(patient);
+
+            // Prepare response headers
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            String filename = String.format("patient_%s_%s.pdf",
+                    patient.getPatientNumber(),
+                    LocalDate.now().format(DateTimeFormatter.ISO_DATE));
+            headers.setContentDispositionFormData("attachment", filename);
+            headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(pdfContent);
+
+        } catch (ResourceNotFoundException e) {
+            logger.error("Patient not found: {}", id);
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            logger.error("Error exporting patient PDF: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * تصدير بطاقة المريض كـ PDF
+     * Export patient card as PDF
+     */
+    @GetMapping("/{id}/export/card")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST')")
+    @Operation(
+            summary = "🎫 تصدير بطاقة المريض PDF",
+            description = """
+        تصدير بطاقة المريض المختصرة في ملف PDF
+        - حجم A5 أفقي
+        - تصميم بطاقة احترافي
+        - معلومات أساسية ومعلومات الطوارئ
+        """,
+            responses = {
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "200",
+                            description = "تم تصدير البطاقة بنجاح",
+                            content = @Content(mediaType = "application/pdf")
+                    ),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "404",
+                            description = "المريض غير موجود"
+                    )
+            }
+    )
+    public ResponseEntity<byte[]> exportPatientCardPdf(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId) {
+
+        logger.info("Exporting patient {} card as PDF by user {}", id, currentUser.getUsername());
+
+        try {
+
+            // For READ operations, SYSTEM_ADMIN doesn't need context
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                // SYSTEM_ADMIN can specify clinic or get all
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN Exporting patient card as PDF from clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                // Other users can only see their clinic
+                effectiveClinicId = currentUser.getClinicId();
+            }
+
+            // Fetch patient details
+            PatientResponse patient = patientService.getPatientById(effectiveClinicId, id);
+
+            // Generate PDF card
+            byte[] pdfContent = pdfService.generatePatientCardPdf(patient);
+
+            // Prepare response headers
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            String filename = String.format("patient_card_%s.pdf", patient.getPatientNumber());
+            headers.setContentDispositionFormData("attachment", filename);
+//            headers.setContentDispositionFormData("inline", filename); // inline for quick preview
+//            headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(pdfContent);
+
+        } catch (ResourceNotFoundException e) {
+            logger.error("Patient not found: {}", id);
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            logger.error("Error exporting patient card PDF: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * تصدير قائمة المرضى كـ PDF
+     * Export patients list as PDF (Optional - for future enhancement)
+     */
+    @GetMapping("/export/list")
+    @SystemAdminContext
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST')")
+    @Operation(
+            summary = "📋 تصدير قائمة المرضى PDF",
+            description = """
+        تصدير قائمة المرضى في ملف PDF
+        - جدول بالمرضى النشطين
+        - معلومات أساسية لكل مريض
+        """,
+            parameters = {
+                    @Parameter(name = "page", description = "رقم الصفحة", example = "0"),
+                    @Parameter(name = "size", description = "حجم الصفحة", example = "50"),
+                    @Parameter(name = "searchTerm", description = "كلمة البحث"),
+                    @Parameter(name = "isActive", description = "حالة النشاط")
+            }
+    )
+    public ResponseEntity<byte[]> exportPatientsListPdf(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(required = false) String searchTerm,
+            @RequestParam(required = false) Boolean isActive,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+
+        logger.info("Exporting patients list as PDF by user {}", currentUser.getUsername());
+
+        // Implementation for list export (if needed)
+        // This can be implemented later based on requirements
+
+        return ResponseEntity.ok()
+                .header("Content-Type", "application/pdf")
+                .body(new byte[0]); // Placeholder
     }
 }
