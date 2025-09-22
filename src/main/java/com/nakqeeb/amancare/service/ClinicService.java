@@ -77,7 +77,7 @@ public class ClinicService {
 
         // Only SYSTEM_ADMIN can create clinics
         if (!UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
-            throw new ForbiddenOperationException("Only SYSTEM_ADMIN can create clinics");
+            throw new ForbiddenOperationException("يمكن فقط لـ SYSTEM_ADMIN إنشاء العيادات");
         }
 
         // Check for duplicate clinic name
@@ -141,7 +141,7 @@ public class ClinicService {
 
         // Only SYSTEM_ADMIN can view all clinics
         if (!UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
-            throw new ForbiddenOperationException("Only SYSTEM_ADMIN can view all clinics");
+            throw new ForbiddenOperationException("يمكن فقط لـ SYSTEM_ADMIN عرض جميع العيادات");
         }
 
         Page<Clinic> clinics;
@@ -164,12 +164,12 @@ public class ClinicService {
         logger.info("Fetching clinic with ID: {} by user: {}", id, currentUser.getId());
 
         Clinic clinic = clinicRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Clinic not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("لم يتم العثور على العيادة بالمعرف: " + id));
 
         // Check permissions
         if (!UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole()) &&
                 !clinic.getId().equals(currentUser.getClinicId())) {
-            throw new ForbiddenOperationException("You don't have permission to view this clinic");
+            throw new ForbiddenOperationException("ليس لديك الإذن للاطلاع على هذه العيادة.");
         }
 
         return ClinicResponse.fromEntity(clinic);
@@ -182,12 +182,12 @@ public class ClinicService {
         logger.info("Fetching statistics for clinic: {} by user: {}", clinicId, currentUser.getId());
 
         Clinic clinic = clinicRepository.findById(clinicId)
-                .orElseThrow(() -> new ResourceNotFoundException("Clinic not found with id: " + clinicId));
+                .orElseThrow(() -> new ResourceNotFoundException("لم يتم العثور على العيادة بالمعرف: " + clinicId));
 
         // Check permissions
         if (!UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole()) &&
                 !clinic.getId().equals(currentUser.getClinicId())) {
-            throw new ForbiddenOperationException("You don't have permission to view this clinic's statistics");
+            throw new ForbiddenOperationException("ليس لديك إذن للاطلاع على إحصائيات هذه العيادة");
         }
 
         ClinicStatisticsResponse stats = new ClinicStatisticsResponse();
@@ -236,7 +236,7 @@ public class ClinicService {
 
         // التحقق من وجود العيادة
         Clinic clinic = clinicRepository.findById(effectiveClinicId)
-                .orElseThrow(() -> new ResourceNotFoundException("Clinic not found with id: " + effectiveClinicId));
+                .orElseThrow(() -> new ResourceNotFoundException("لم يتم العثور على العيادة بالمعرف: " + effectiveClinicId));
 
         // Check permissions - SYSTEM_ADMIN or ADMIN of the same clinic
         boolean isSystemAdmin = UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole());
@@ -244,13 +244,13 @@ public class ClinicService {
                 clinic.getId().equals(currentUser.getClinicId());
 
         if (!isSystemAdmin && !isClinicAdmin) {
-            throw new ForbiddenOperationException("You don't have permission to update this clinic");
+            throw new ForbiddenOperationException("ليس لديك الإذن لتحديث هذه العيادة");
         }
 
         // Check for duplicate name if changing
         if (request.getName() != null && !request.getName().equals(clinic.getName())) {
             if (clinicRepository.existsByNameIgnoreCase(request.getName())) {
-                throw new DuplicateResourceException("Clinic with name '" + request.getName() + "' already exists");
+                throw new DuplicateResourceException("العيادة بالاسم '" + request.getName() + "' موجودة بالفعل");
             }
             clinic.setName(request.getName());
         }
@@ -304,11 +304,11 @@ public class ClinicService {
 
         // Only SYSTEM_ADMIN can update subscriptions
         if (!UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
-            throw new ForbiddenOperationException("Only SYSTEM_ADMIN can update subscriptions");
+            throw new ForbiddenOperationException("يمكن فقط لـ SYSTEM_ADMIN تحديث الاشتراكات");
         }
 
         Clinic clinic = clinicRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Clinic not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("لم يتم العثور على العيادة بالمعرف: " + id));
 
         SubscriptionPlan oldPlan = clinic.getSubscriptionPlan();
         clinic.setSubscriptionPlan(request.getSubscriptionPlan());
@@ -348,11 +348,11 @@ public class ClinicService {
 
         // Only SYSTEM_ADMIN can activate clinics
         if (!UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
-            throw new ForbiddenOperationException("Only SYSTEM_ADMIN can activate clinics");
+            throw new ForbiddenOperationException("يمكن فقط لـ SYSTEM_ADMIN تنشيط العيادات");
         }
 
         Clinic clinic = clinicRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Clinic not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("لم يتم العثور على العيادة بالمعرف: " + id));
 
         if (clinic.getIsActive()) {
             logger.info("Clinic {} is already active", id);
@@ -385,11 +385,11 @@ public class ClinicService {
 
         // Only SYSTEM_ADMIN can deactivate clinics
         if (!UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
-            throw new ForbiddenOperationException("Only SYSTEM_ADMIN can deactivate clinics");
+            throw new ForbiddenOperationException("يمكن فقط لـ SYSTEM_ADMIN إلغاء تنشيط العيادات");
         }
 
         Clinic clinic = clinicRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Clinic not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("لم يتم العثور على العيادة بالمعرف: " + id));
 
         if (!clinic.getIsActive()) {
             logger.info("Clinic {} is already inactive", id);
@@ -427,11 +427,11 @@ public class ClinicService {
 
         // Only SYSTEM_ADMIN can delete clinics
         if (!UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
-            throw new ForbiddenOperationException("Only SYSTEM_ADMIN can delete clinics");
+            throw new ForbiddenOperationException("يمكن فقط لـ SYSTEM_ADMIN حذف العيادات");
         }
 
         Clinic clinic = clinicRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Clinic not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("لم يتم العثور على العيادة بالمعرف: " + id));
 
         // Check if clinic has active data
         long activeUsers = userRepository.countByClinic(clinic);
