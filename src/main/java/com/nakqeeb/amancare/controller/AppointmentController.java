@@ -384,7 +384,7 @@ public class AppointmentController {
                         contextInfo.getActingAsClinicId(), contextInfo.getReason());
             }
             AppointmentResponse appointment = appointmentService.updateAppointmentStatus(
-                    currentUser.getClinicId(), id, status);
+                    currentUser, id, status);
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم تحديث حالة الموعد بنجاح", appointment)
             );

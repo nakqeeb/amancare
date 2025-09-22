@@ -15,7 +15,7 @@ import com.nakqeeb.amancare.exception.ResourceNotFoundException;
 import com.nakqeeb.amancare.security.UserPrincipal;
 import com.nakqeeb.amancare.service.ClinicContextService;
 import com.nakqeeb.amancare.service.PatientService;
-import com.nakqeeb.amancare.service.PdfService;
+import com.nakqeeb.amancare.service.pdf.PdfPatientService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -37,7 +37,6 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * وحدة التحكم بالمرضى
@@ -56,7 +55,7 @@ public class PatientController {
     private ClinicContextService clinicContextService;
 
     @Autowired
-    private PdfService pdfService;
+    private PdfPatientService pdfPatientService;
 
     /**
      * إنشاء مريض جديد
@@ -717,7 +716,7 @@ public class PatientController {
             PatientResponse patient = patientService.getPatientById(effectiveClinicId, id);
 
             // Generate PDF
-            byte[] pdfContent = pdfService.generatePatientDetailsPdf(patient);
+            byte[] pdfContent = pdfPatientService.generatePatientDetailsPdf(patient);
 
             // Prepare response headers
             HttpHeaders headers = new HttpHeaders();
@@ -793,7 +792,7 @@ public class PatientController {
             PatientResponse patient = patientService.getPatientById(effectiveClinicId, id);
 
             // Generate PDF card
-            byte[] pdfContent = pdfService.generatePatientCardPdf(patient);
+            byte[] pdfContent = pdfPatientService.generatePatientCardPdf(patient);
 
             // Prepare response headers
             HttpHeaders headers = new HttpHeaders();

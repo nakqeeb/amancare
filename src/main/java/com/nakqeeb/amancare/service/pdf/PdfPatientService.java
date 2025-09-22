@@ -1,8 +1,4 @@
-// =============================================================================
-// PDF Service - خدمة توليد ملفات PDF (Enhanced for OpenHTMLtoPDF Compatibility)
-// =============================================================================
-
-package com.nakqeeb.amancare.service;
+package com.nakqeeb.amancare.service.pdf;
 
 import com.nakqeeb.amancare.dto.response.PatientResponse;
 import com.nakqeeb.amancare.entity.Patient;
@@ -41,8 +37,8 @@ import java.util.regex.Pattern;
  * Enhanced for better OpenHTMLtoPDF compatibility
  */
 @Service
-public class PdfService {
-    private static final Logger logger = LoggerFactory.getLogger(PdfService.class);
+public class PdfPatientService {
+    private static final Logger logger = LoggerFactory.getLogger(PdfPatientService.class);
 
     @Autowired
     private TemplateEngine templateEngine;

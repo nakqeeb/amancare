@@ -281,8 +281,14 @@ public class AppointmentService {
     /**
      * تحديث حالة الموعد
      */
-    public AppointmentResponse updateAppointmentStatus(Long clinicId, Long appointmentId, AppointmentStatus newStatus) {
-        Appointment appointment = findAppointmentByIdAndClinic(appointmentId, clinicId);
+    public AppointmentResponse updateAppointmentStatus(UserPrincipal currentUser, Long appointmentId, AppointmentStatus newStatus) {
+        // Get effective clinic ID - this will throw exception if SYSTEM_ADMIN has no context
+        Long effectiveClinicId = clinicContextService.getEffectiveClinicId(currentUser);
+
+        logger.info("Updating appointment's status in clinic {} by user {}",
+                effectiveClinicId, currentUser.getUsername());
+
+        Appointment appointment = findAppointmentByIdAndClinic(appointmentId, effectiveClinicId);
 
         // التحقق من صحة انتقال الحالة
         validateStatusTransition(appointment.getStatus(), newStatus);

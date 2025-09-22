@@ -1,0 +1,165 @@
+<!-- =============================================================================
+3. Lab Tests Template
+src/main/resources/templates/pdf/lab-tests-template.html
+============================================================================= -->
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>تقرير الفحوصات المخبرية</title>
+    <style>
+        /* Base styles similar to other templates */
+        body {
+            font-family: 'NotoSansArabic', Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            direction: rtl;
+            text-align: right;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .lab-header {
+            text-align: center;
+            background: linear-gradient(135deg, #2c5aa0, #1e3d6f);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+
+        .lab-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .test-category {
+            background-color: #2c5aa0;
+            color: white;
+            padding: 10px;
+            margin: 20px 0 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .test-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            border: 2px solid #2c5aa0;
+        }
+
+        .test-table th {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            font-weight: bold;
+            color: #2c5aa0;
+        }
+
+        .test-table td {
+            border: 1px solid #dee2e6;
+            padding: 8px;
+        }
+
+        .test-result {
+            font-weight: bold;
+        }
+
+        .result-normal { color: #28a745; }
+        .result-abnormal { color: #dc3545; }
+        .result-pending { color: #ffc107; }
+
+        .summary-box {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+<!-- Lab Tests Header -->
+<div class="lab-header">
+    <div class="lab-title">🔬 تقرير الفحوصات المخبرية</div>
+    <div th:text="${medicalRecord.clinicName ?: 'أمان كير'}"></div>
+</div>
+
+<!-- Patient Information -->
+<div class="summary-box">
+    <h3>بيانات المريض والفحص:</h3>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <div><strong>اسم المريض:</strong> <span th:text="${medicalRecord.patientName}"></span></div>
+        <div><strong>رقم المريض:</strong> <span th:text="${medicalRecord.patientNumber}"></span></div>
+        <div><strong>الطبيب المعالج:</strong> <span th:text="${medicalRecord.doctorName}"></span></div>
+        <div><strong>تاريخ الطلب:</strong> <span th:text="${formattedVisitDate}"></span></div>
+        <div><strong>عدد الفحوصات:</strong> <span th:text="${totalLabTests}"></span></div>
+        <div><strong>الفحوصات المكتملة:</strong> <span th:text="${completedTestsCount}"></span></div>
+    </div>
+</div>
+
+<!-- Tests by Category -->
+<div th:each="categoryEntry : ${testsByCategory}">
+    <div class="test-category" th:text="${categoryEntry.key}"></div>
+
+    <table class="test-table">
+        <thead>
+        <tr>
+            <th>اسم الفحص</th>
+            <th>الحالة</th>
+            <th>تاريخ الطلب</th>
+            <th>تاريخ النتيجة</th>
+            <th>النتيجة</th>
+            <th>المعدل الطبيعي</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="test : ${categoryEntry.value}">
+            <td th:text="${test.testName}"></td>
+            <td>
+                        <span th:text="${test.statusArabic}"
+                              th:class="${test.status.toString().toLowerCase() == 'completed'} ? 'result-normal' :
+                                        (${test.status.toString().toLowerCase() == 'cancelled'} ? 'result-abnormal' : 'result-pending')"></span>
+            </td>
+            <td th:text="${test.orderedDate}"></td>
+            <td th:text="${test.resultDate ?: 'لم تصدر بعد'}"></td>
+            <td>
+                <span th:if="${test.results}" th:text="${test.results}" class="test-result"></span>
+                <span th:unless="${test.results}" style="color: #666;">في انتظار النتيجة</span>
+            </td>
+            <td th:text="${test.normalRange ?: 'غير محدد'}"></td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Summary Statistics -->
+<div class="summary-box">
+    <h3>ملخص الفحوصات:</h3>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; text-align: center;">
+        <div style="background-color: #28a745; color: white; padding: 10px; border-radius: 5px;">
+            <strong th:text="${completedTestsCount}"></strong><br />
+            <small>مكتملة</small>
+        </div>
+        <div style="background-color: #ffc107; color: #333; padding: 10px; border-radius: 5px;">
+            <strong th:text="${pendingTestsCount}"></strong><br />
+            <small>معلقة</small>
+        </div>
+        <div style="background-color: #2c5aa0; color: white; padding: 10px; border-radius: 5px;">
+            <strong th:text="${totalLabTests}"></strong><br />
+            <small>المجموع</small>
+        </div>
+    </div>
+</div>
+
+<!-- Footer -->
+<div style="text-align: center; margin-top: 30px; font-size: 10px; color: #666; border-top: 1px solid #dee2e6; padding-top: 15px;">
+    تم إنشاء هذا التقرير إلكترونياً بواسطة نظام أمان كير في <span th:text="${currentDate}"></span><br />
+    للاستفسارات الطبية أو الفنية، يرجى التواصل مع العيادة أو المختبر المختص
+</div>
+</body>
+</html>

@@ -1,128 +1,267 @@
 // =============================================================================
 // Medical Record Entity - كيان السجل الطبي
+// src/main/java/com/nakqeeb/amancare/entity/MedicalRecord.java
 // =============================================================================
 
 package com.nakqeeb.amancare.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.nakqeeb.amancare.entity.healthrecords.*;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.*;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
-/**
- * كيان السجل الطبي
- */
 @Entity
-@Table(name = "medical_records",
-        indexes = {
-                @Index(name = "idx_patient_records", columnList = "patient_id, visit_date")
-        })
-public class MedicalRecord extends BaseEntity {
+@Table(name = "medical_records")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@EqualsAndHashCode(callSuper = false)
+public class MedicalRecord {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "clinic_id", nullable = false)
-    private Clinic clinic;
-
+    // Patient relationship
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "patient_id", nullable = false)
+    @JsonIgnore
     private Patient patient;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @Column(name = "patient_id", insertable = false, updatable = false)
+    private Long patientId;
+
+    // Appointment relationship (optional)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "appointment_id")
+    @JsonIgnore
     private Appointment appointment;
 
+    @Column(name = "appointment_id", insertable = false, updatable = false)
+    private Long appointmentId;
+
+    // Doctor relationship
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "doctor_id", nullable = false)
+    @JsonIgnore
     private User doctor;
 
+    @Column(name = "doctor_id", insertable = false, updatable = false)
+    private Long doctorId;
+
+    // Clinic relationship (for multi-tenant support)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "clinic_id", nullable = false)
+    @JsonIgnore
+    private Clinic clinic;
+
+    @Column(name = "clinic_id", insertable = false, updatable = false)
+    private Long clinicId;
+
+    // Basic Information
+    @Column(name = "visit_date", nullable = false)
     @NotNull(message = "تاريخ الزيارة مطلوب")
-    @Column(name = "symptoms", columnDefinition = "TEXT")
-    private String symptoms;
-
-    @Column(name = "diagnosis", columnDefinition = "TEXT")
-    private String diagnosis;
-
-    @Column(name = "treatment_plan", columnDefinition = "TEXT")
-    private String treatmentPlan;
-
-    @Column(name = "prescribed_medications", columnDefinition = "TEXT")
-    private String prescribedMedications;
-
-    @Column(name = "lab_tests", columnDefinition = "TEXT")
-    private String labTests;
-
-    @Column(name = "follow_up_instructions", columnDefinition = "TEXT")
-    private String followUpInstructions;
-
-    @Column(name = "next_visit_date")
-    private LocalDate nextVisitDate;
-
-    @Column(name="visit_date", nullable = false)
     private LocalDate visitDate;
 
-    @Column(name = "chief_complaint", columnDefinition = "TEXT")
+    @Enumerated(EnumType.STRING)
+    @Column(name = "visit_type", nullable = false, length = 50)
+    @NotNull(message = "نوع الزيارة مطلوب")
+    private VisitType visitType;
+
+    // Vital Signs (stored as JSON in database)
+    @Embedded
+    private VitalSigns vitalSigns;
+
+    // Medical Information
+    @Column(name = "chief_complaint", nullable = false, columnDefinition = "TEXT")
+    @NotBlank(message = "الشكوى الرئيسية مطلوبة")
+    @Size(max = 1000, message = "الشكوى الرئيسية يجب أن تكون أقل من 1000 حرف")
     private String chiefComplaint;
 
-    @Column(name = "vital_signs", columnDefinition = "JSON")
-    private String vitalSigns; // سيتم تخزين JSON string
+    @Column(name = "present_illness", columnDefinition = "TEXT")
+    @Size(max = 2000, message = "تاريخ المرض الحالي يجب أن يكون أقل من 2000 حرف")
+    private String presentIllness;
 
-    // Constructors
-    public MedicalRecord() {}
+    @Column(name = "past_medical_history", columnDefinition = "TEXT")
+    @Size(max = 1500, message = "التاريخ المرضي يجب أن يكون أقل من 1500 حرف")
+    private String pastMedicalHistory;
 
-    public MedicalRecord(Clinic clinic, Patient patient, User doctor, LocalDate visitDate) {
-        this.clinic = clinic;
-        this.patient = patient;
-        this.doctor = doctor;
-        this.visitDate = visitDate;
+    @Column(name = "family_history", columnDefinition = "TEXT")
+    @Size(max = 1500, message = "التاريخ العائلي يجب أن يكون أقل من 1500 حرف")
+    private String familyHistory;
+
+    @Column(name = "social_history", columnDefinition = "TEXT")
+    @Size(max = 1000, message = "التاريخ الاجتماعي يجب أن يكون أقل من 1000 حرف")
+    private String socialHistory;
+
+    @ElementCollection
+    @CollectionTable(name = "medical_record_allergies", joinColumns = @JoinColumn(name = "medical_record_id"))
+    @Column(name = "allergy", length = 255)
+    private List<String> allergies = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "medical_record_medications", joinColumns = @JoinColumn(name = "medical_record_id"))
+    @Column(name = "medication", length = 255)
+    private List<String> currentMedications = new ArrayList<>();
+
+    // Physical Examination
+    @Column(name = "physical_examination", nullable = false, columnDefinition = "TEXT")
+    @NotBlank(message = "الفحص السريري مطلوب")
+    @Size(max = 2000, message = "الفحص السريري يجب أن يكون أقل من 2000 حرف")
+    private String physicalExamination;
+
+    @Column(name = "systemic_examination", columnDefinition = "TEXT")
+    @Size(max = 2000, message = "فحص الأجهزة يجب أن يكون أقل من 2000 حرف")
+    private String systemicExamination;
+
+    // Diagnosis (One-to-Many relationship)
+    @OneToMany(mappedBy = "medicalRecord", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonManagedReference
+    @Builder.Default
+    private List<Diagnosis> diagnosis = new ArrayList<>();
+
+    // Treatment Plan
+    @Column(name = "treatment_plan", nullable = false, columnDefinition = "TEXT")
+    @NotBlank(message = "خطة العلاج مطلوبة")
+    @Size(max = 2000, message = "خطة العلاج يجب أن تكون أقل من 2000 حرف")
+    private String treatmentPlan;
+
+    // Prescriptions (One-to-Many relationship)
+    @OneToMany(mappedBy = "medicalRecord", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonManagedReference
+    @Builder.Default
+    private List<Prescription> prescriptions = new ArrayList<>();
+
+    // Lab Tests (One-to-Many relationship)
+    @OneToMany(mappedBy = "medicalRecord", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonManagedReference
+    @Builder.Default
+    private List<LabTest> labTests = new ArrayList<>();
+
+    // Radiology Tests (One-to-Many relationship)
+    @OneToMany(mappedBy = "medicalRecord", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonManagedReference
+    @Builder.Default
+    private List<RadiologyTest> radiologyTests = new ArrayList<>();
+
+    // Medical Procedures (One-to-Many relationship)
+    @OneToMany(mappedBy = "medicalRecord", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonManagedReference
+    @Builder.Default
+    private List<MedicalProcedure> procedures = new ArrayList<>();
+
+    // Follow-up Information
+    @Column(name = "follow_up_date")
+    private LocalDate followUpDate;
+
+    @Column(name = "follow_up_instructions", columnDefinition = "TEXT")
+    @Size(max = 1500, message = "تعليمات المتابعة يجب أن تكون أقل من 1500 حرف")
+    private String followUpInstructions;
+
+    // Referrals (One-to-Many relationship)
+    @OneToMany(mappedBy = "medicalRecord", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonManagedReference
+    @Builder.Default
+    private List<Referral> referrals = new ArrayList<>();
+
+    // Administrative Information
+    @Column(name = "notes", columnDefinition = "TEXT")
+    @Size(max = 1000, message = "الملاحظات يجب أن تكون أقل من 1000 حرف")
+    private String notes;
+
+    @Column(name = "is_confidential", nullable = false)
+    @Builder.Default
+    private Boolean isConfidential = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    @NotNull(message = "حالة السجل مطلوبة")
+    @Builder.Default
+    private RecordStatus status = RecordStatus.DRAFT;
+
+    // Audit Information
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @Column(name = "created_by", length = 100)
+    private String createdBy;
+
+    @Column(name = "updated_by", length = 100)
+    private String updatedBy;
+
+    // Helper methods for managing bidirectional relationships
+    public void addDiagnosis(Diagnosis diagnosis) {
+        this.diagnosis.add(diagnosis);
+        diagnosis.setMedicalRecord(this);
     }
 
-    // Getters and Setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public void removeDiagnosis(Diagnosis diagnosis) {
+        this.diagnosis.remove(diagnosis);
+        diagnosis.setMedicalRecord(null);
+    }
 
-    public Clinic getClinic() { return clinic; }
-    public void setClinic(Clinic clinic) { this.clinic = clinic; }
+    public void addPrescription(Prescription prescription) {
+        this.prescriptions.add(prescription);
+        prescription.setMedicalRecord(this);
+    }
 
-    public Patient getPatient() { return patient; }
-    public void setPatient(Patient patient) { this.patient = patient; }
+    public void removePrescription(Prescription prescription) {
+        this.prescriptions.remove(prescription);
+        prescription.setMedicalRecord(null);
+    }
 
-    public Appointment getAppointment() { return appointment; }
-    public void setAppointment(Appointment appointment) { this.appointment = appointment; }
+    public void addLabTest(LabTest labTest) {
+        this.labTests.add(labTest);
+        labTest.setMedicalRecord(this);
+    }
 
-    public User getDoctor() { return doctor; }
-    public void setDoctor(User doctor) { this.doctor = doctor; }
+    public void removeLabTest(LabTest labTest) {
+        this.labTests.remove(labTest);
+        labTest.setMedicalRecord(null);
+    }
 
-    public LocalDate getVisitDate() { return visitDate; }
-    public void setVisitDate(LocalDate visitDate) { this.visitDate = visitDate; }
+    public void addRadiologyTest(RadiologyTest radiologyTest) {
+        this.radiologyTests.add(radiologyTest);
+        radiologyTest.setMedicalRecord(this);
+    }
 
-    public String getChiefComplaint() { return chiefComplaint; }
-    public void setChiefComplaint(String chiefComplaint) { this.chiefComplaint = chiefComplaint; }
+    public void removeRadiologyTest(RadiologyTest radiologyTest) {
+        this.radiologyTests.remove(radiologyTest);
+        radiologyTest.setMedicalRecord(null);
+    }
 
-    public String getSymptoms() { return symptoms; }
-    public void setSymptoms(String symptoms) { this.symptoms = symptoms; }
+    public void addProcedure(MedicalProcedure procedure) {
+        this.procedures.add(procedure);
+        procedure.setMedicalRecord(this);
+    }
 
-    public String getDiagnosis() { return diagnosis; }
-    public void setDiagnosis(String diagnosis) { this.diagnosis = diagnosis; }
+    public void removeProcedure(MedicalProcedure procedure) {
+        this.procedures.remove(procedure);
+        procedure.setMedicalRecord(null);
+    }
 
-    public String getTreatmentPlan() { return treatmentPlan; }
-    public void setTreatmentPlan(String treatmentPlan) { this.treatmentPlan = treatmentPlan; }
+    public void addReferral(Referral referral) {
+        this.referrals.add(referral);
+        referral.setMedicalRecord(this);
+    }
 
-    public String getPrescribedMedications() { return prescribedMedications; }
-    public void setPrescribedMedications(String prescribedMedications) { this.prescribedMedications = prescribedMedications; }
-
-    public String getLabTests() { return labTests; }
-    public void setLabTests(String labTests) { this.labTests = labTests; }
-
-    public String getFollowUpInstructions() { return followUpInstructions; }
-    public void setFollowUpInstructions(String followUpInstructions) { this.followUpInstructions = followUpInstructions; }
-
-    public LocalDate getNextVisitDate() { return nextVisitDate; }
-    public void setNextVisitDate(LocalDate nextVisitDate) { this.nextVisitDate = nextVisitDate; }
-
-    public String getVitalSigns() { return vitalSigns; }
-    public void setVitalSigns(String vitalSigns) { this.vitalSigns = vitalSigns; }
+    public void removeReferral(Referral referral) {
+        this.referrals.remove(referral);
+        referral.setMedicalRecord(null);
+    }
 }

@@ -1,0 +1,472 @@
+<!-- =============================================================================
+Medical Record PDF Templates - قوالب PDF للسجلات الطبية
+src/main/resources/templates/pdf/
+============================================================================= -->
+
+<!-- =============================================================================
+1. Medical Record Template
+src/main/resources/templates/pdf/medical-record-template.html
+============================================================================= -->
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>السجل الطبي</title>
+    <style>
+        @page {
+            margin: 1in;
+            @bottom-right {
+                content: "صفحة " counter(page) " من " counter(pages);
+                font-family: 'Noto Sans Arabic', Arial, sans-serif;
+                font-size: 10px;
+            }
+        }
+
+        body {
+            font-family: 'Noto Sans Arabic', Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            direction: rtl;
+            text-align: right;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #2c5aa0;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .clinic-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 5px;
+        }
+
+        .document-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .document-subtitle {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .patient-info {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-left: 8px;
+            min-width: 80px;
+        }
+
+        .info-value {
+            flex: 1;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #2c5aa0;
+            border-bottom: 1px solid #2c5aa0;
+            padding-bottom: 5px;
+            margin: 20px 0 10px 0;
+        }
+
+        .vital-signs-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        .vital-sign {
+            text-align: center;
+            padding: 10px;
+            background-color: white;
+            border-radius: 3px;
+            border: 1px solid #dee2e6;
+        }
+
+        .vital-sign-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #2c5aa0;
+            display: block;
+        }
+
+        .vital-sign-label {
+            font-size: 10px;
+            color: #666;
+            margin-top: 2px;
+        }
+
+        .text-section {
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .diagnosis-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .diagnosis-item {
+            background-color: #f8f9fa;
+            border-right: 4px solid #2c5aa0;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 0 5px 5px 0;
+        }
+
+        .diagnosis-primary {
+            border-right-color: #dc3545;
+            background-color: #fdf2f2;
+        }
+
+        .diagnosis-type {
+            font-size: 10px;
+            background-color: #2c5aa0;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 8px;
+        }
+
+        .diagnosis-primary .diagnosis-type {
+            background-color: #dc3545;
+        }
+
+        .medications-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+
+        .medications-table th,
+        .medications-table td {
+            border: 1px solid #dee2e6;
+            padding: 8px;
+            text-align: right;
+        }
+
+        .medications-table th {
+            background-color: #2c5aa0;
+            color: white;
+            font-weight: bold;
+        }
+
+        .medications-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        .tests-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .test-card {
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            background-color: #f8f9fa;
+        }
+
+        .test-name {
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 5px;
+        }
+
+        .test-status {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            color: white;
+        }
+
+        .status-ordered { background-color: #ffc107; color: #333; }
+        .status-completed { background-color: #28a745; }
+        .status-in-progress { background-color: #17a2b8; }
+        .status-cancelled { background-color: #dc3545; }
+
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 10px;
+            color: #666;
+            border-top: 1px solid #dee2e6;
+            padding-top: 15px;
+        }
+
+        .signature-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 50px;
+            margin-top: 40px;
+        }
+
+        .signature-box {
+            text-align: center;
+            border-top: 1px solid #333;
+            padding-top: 5px;
+        }
+
+        .confidential-watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 60px;
+            color: rgba(220, 53, 69, 0.1);
+            font-weight: bold;
+            z-index: -1;
+        }
+
+        .page-break {
+            page-break-before: always;
+        }
+    </style>
+</head>
+<body>
+<!-- Confidential watermark -->
+<div th:if="${medicalRecord.isConfidential}" class="confidential-watermark">سري ومحمي</div>
+
+<!-- Header -->
+<div class="header">
+    <div class="clinic-name" th:text="${medicalRecord.clinicName ?: 'أمان كير'}">أمان كير</div>
+    <div class="document-title">السجل الطبي</div>
+    <div class="document-subtitle">
+        تاريخ الإنشاء: <span th:text="${currentDate}"></span> |
+        رقم السجل: <span th:text="${medicalRecord.id}"></span>
+    </div>
+</div>
+
+<!-- Patient Information -->
+<div class="patient-info">
+    <div class="section-title">بيانات المريض</div>
+    <div class="info-grid">
+        <div class="info-item">
+            <span class="info-label">الاسم:</span>
+            <span class="info-value" th:text="${medicalRecord.patientName}"></span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">رقم المريض:</span>
+            <span class="info-value" th:text="${medicalRecord.patientNumber}"></span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">الطبيب:</span>
+            <span class="info-value" th:text="${medicalRecord.doctorName}"></span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">تاريخ الزيارة:</span>
+            <span class="info-value" th:text="${formattedVisitDate}"></span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">نوع الزيارة:</span>
+            <span class="info-value" th:text="${medicalRecord.visitTypeArabic}"></span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">حالة السجل:</span>
+            <span class="info-value" th:text="${medicalRecord.statusArabic}"></span>
+        </div>
+    </div>
+</div>
+
+<!-- Vital Signs -->
+<div th:if="${hasVitalSigns}">
+    <div class="section-title">العلامات الحيوية</div>
+    <div class="vital-signs-grid">
+        <div class="vital-sign" th:if="${medicalRecord.vitalSigns.temperature}">
+            <span class="vital-sign-value" th:text="${medicalRecord.vitalSigns.temperature} + '°C'"></span>
+            <div class="vital-sign-label">درجة الحرارة</div>
+        </div>
+        <div class="vital-sign" th:if="${bloodPressure != 'غير مسجل'}">
+            <span class="vital-sign-value" th:text="${bloodPressure}"></span>
+            <div class="vital-sign-label">ضغط الدم</div>
+        </div>
+        <div class="vital-sign" th:if="${medicalRecord.vitalSigns.heartRate}">
+            <span class="vital-sign-value" th:text="${medicalRecord.vitalSigns.heartRate} + ' bpm'"></span>
+            <div class="vital-sign-label">نبضات القلب</div>
+        </div>
+        <div class="vital-sign" th:if="${medicalRecord.vitalSigns.weight}">
+            <span class="vital-sign-value" th:text="${medicalRecord.vitalSigns.weight} + ' kg'"></span>
+            <div class="vital-sign-label">الوزن</div>
+        </div>
+        <div class="vital-sign" th:if="${medicalRecord.vitalSigns.height}">
+            <span class="vital-sign-value" th:text="${medicalRecord.vitalSigns.height} + ' cm'"></span>
+            <div class="vital-sign-label">الطول</div>
+        </div>
+        <div class="vital-sign" th:if="${medicalRecord.vitalSigns.bmi}">
+            <span class="vital-sign-value" th:text="${medicalRecord.vitalSigns.bmi}"></span>
+            <div class="vital-sign-label" th:text="'مؤشر كتلة الجسم (' + ${bmiCategory} + ')'">مؤشر كتلة الجسم</div>
+        </div>
+    </div>
+</div>
+
+<!-- Chief Complaint -->
+<div class="section-title">الشكوى الرئيسية</div>
+<div class="text-section" th:text="${medicalRecord.chiefComplaint}"></div>
+
+<!-- Present Illness -->
+<div th:if="${medicalRecord.presentIllness}">
+    <div class="section-title">تاريخ المرض الحالي</div>
+    <div class="text-section" th:text="${medicalRecord.presentIllness}"></div>
+</div>
+
+<!-- Physical Examination -->
+<div class="section-title">الفحص السريري</div>
+<div class="text-section" th:text="${medicalRecord.physicalExamination}"></div>
+
+<!-- Diagnosis -->
+<div class="section-title">التشخيص</div>
+<ul class="diagnosis-list">
+    <li th:each="diagnosis : ${medicalRecord.diagnosis}"
+        th:class="${diagnosis.isPrimary} ? 'diagnosis-item diagnosis-primary' : 'diagnosis-item'">
+            <span th:class="${diagnosis.isPrimary} ? 'diagnosis-type' : 'diagnosis-type'"
+                  th:text="${diagnosis.typeArabic}"></span>
+        <span th:text="${diagnosis.description}"></span>
+        <span th:if="${diagnosis.icdCode}" th:text="'(' + ${diagnosis.icdCode} + ')'"
+              style="color: #666; font-size: 10px;"></span>
+    </li>
+</ul>
+
+<!-- Treatment Plan -->
+<div class="section-title">خطة العلاج</div>
+<div class="text-section" th:text="${medicalRecord.treatmentPlan}"></div>
+
+<!-- Prescriptions -->
+<div th:if="${hasPrescriptions}" class="page-break">
+    <div class="section-title">الوصفات الطبية</div>
+    <table class="medications-table">
+        <thead>
+        <tr>
+            <th>اسم الدواء</th>
+            <th>الجرعة</th>
+            <th>التكرار</th>
+            <th>المدة</th>
+            <th>طريقة الإعطاء</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="prescription : ${medicalRecord.prescriptions}">
+            <td th:text="${prescription.medicationName}"></td>
+            <td th:text="${prescription.dosage}"></td>
+            <td th:text="${prescription.frequency}"></td>
+            <td th:text="${prescription.duration}"></td>
+            <td th:text="${prescription.routeArabic}"></td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Lab Tests -->
+<div th:if="${hasLabTests}">
+    <div class="section-title">الفحوصات المخبرية</div>
+    <div class="tests-grid">
+        <div th:each="labTest : ${medicalRecord.labTests}" class="test-card">
+            <div class="test-name" th:text="${labTest.testName}"></div>
+            <div>
+                    <span class="test-status" th:class="'status-' + ${labTest.status.toString().toLowerCase()}"
+                          th:text="${labTest.statusArabic}"></span>
+            </div>
+            <div th:if="${labTest.results}" style="margin-top: 5px;">
+                <strong>النتيجة:</strong> <span th:text="${labTest.results}"></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Radiology Tests -->
+<div th:if="${hasRadiologyTests}">
+    <div class="section-title">فحوصات الأشعة</div>
+    <div class="tests-grid">
+        <div th:each="radiologyTest : ${medicalRecord.radiologyTests}" class="test-card">
+            <div class="test-name" th:text="${radiologyTest.testName}"></div>
+            <div>
+                    <span class="test-status" th:class="'status-' + ${radiologyTest.status.toString().toLowerCase()}"
+                          th:text="${radiologyTest.statusArabic}"></span>
+            </div>
+            <div th:if="${radiologyTest.findings}" style="margin-top: 5px;">
+                <strong>النتائج:</strong> <span th:text="${radiologyTest.findings}"></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Follow-up -->
+<div th:if="${medicalRecord.followUpDate}">
+    <div class="section-title">المتابعة</div>
+    <div class="text-section">
+        <div><strong>موعد المتابعة:</strong> <span th:text="${formattedFollowUpDate}"></span></div>
+        <div th:if="${medicalRecord.followUpInstructions}">
+            <strong>تعليمات المتابعة:</strong><br />
+            <span th:text="${medicalRecord.followUpInstructions}"></span>
+        </div>
+    </div>
+</div>
+
+<!-- Notes -->
+<div th:if="${medicalRecord.notes}">
+    <div class="section-title">ملاحظات إضافية</div>
+    <div class="text-section" th:text="${medicalRecord.notes}"></div>
+</div>
+
+<!-- Signature Section -->
+<div class="signature-section">
+    <div class="signature-box">
+        توقيع الطبيب<br />
+        <span th:text="${medicalRecord.doctorName}"></span>
+    </div>
+    <div class="signature-box">
+        تاريخ الإنشاء<br />
+        <span th:text="${currentDate}"></span>
+    </div>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+    <div>هذا السجل الطبي تم إنشاؤه إلكترونياً بواسطة نظام أمان كير</div>
+    <div>جميع المعلومات المدرجة في هذا السجل سرية ومحمية بموجب قوانين حماية البيانات الطبية</div>
+    <div th:if="${medicalRecord.isConfidential}" style="color: #dc3545; font-weight: bold; margin-top: 5px;">
+        ⚠️ هذا السجل سري للغاية ولا يسمح بالاطلاع عليه إلا للأشخاص المخولين
+    </div>
+</div>
+</body>
+</html>

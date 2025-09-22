@@ -296,6 +296,64 @@ public class AuditLogService {
                 .anyMatch(action -> action.getCreatedAt().isAfter(threshold));
     }
 
+    /**
+     * Simple activity logging method for medical records
+     * This is a wrapper for the main logAction method
+     */
+    public void logActivity(String activity, String resourceType, Long resourceId,
+                            Long userId, Long clinicId, String details) {
+
+        // Map activity to action type
+        String actionType = mapActivityToActionType(activity);
+
+        // Call the main logAction method
+        logAction(
+                userId,           // adminUserId
+                actionType,       // actionType
+                clinicId,        // targetClinicId
+                resourceType,    // targetResourceType (e.g., "MEDICAL_RECORD")
+                resourceId,      // targetResourceId
+                details          // details
+        );
+    }
+
+    /**
+     * Map activity string to action type constant
+     */
+    private String mapActivityToActionType(String activity) {
+        if (activity == null) {
+            return ACTION_VIEW;
+        }
+
+        switch (activity.toLowerCase()) {
+            case "إنشاء":
+            case "create":
+            case "إنشاء سجل طبي":
+                return ACTION_CREATE;
+            case "تحديث":
+            case "update":
+            case "تحديث سجل طبي":
+            case "تحديث حالة سجل طبي":
+                return ACTION_UPDATE;
+            case "حذف":
+            case "delete":
+            case "حذف سجل طبي":
+                return ACTION_DELETE;
+            case "الحذف النهائي":
+            case "permanent delete":
+            case "الحذف النهائي لسجل طبي":
+                return ACTION_PERMANENT_DELETE;
+            case "عرض":
+            case "view":
+                return ACTION_VIEW;
+            case "export":
+            case "تصدير":
+                return ACTION_EXPORT;
+            default:
+                return activity.toUpperCase().replace(" ", "_");
+        }
+    }
+
     // ==================== Private Helper Methods ====================
 
     /**

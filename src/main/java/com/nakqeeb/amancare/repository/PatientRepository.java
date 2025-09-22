@@ -217,4 +217,9 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
      */
     long countByClinicAndIsActiveTrue(Clinic clinic);
 
+    /**
+     * البحث عن مريض حسب المعرف والعيادة
+     * Find patient by ID and clinic ID
+     */
+    Optional<Patient> findByIdAndClinic(Long id, Clinic clinic);
 }

@@ -133,4 +133,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
      */
     @Query("SELECT u FROM User u WHERE u.clinic = :clinic AND u.role = 'DOCTOR'")
     List<User> findDoctorsByClinic(@Param("clinic") Clinic clinic);
+
+    /**
+     * البحث عن مستخدم حسب المعرف والعيادة والدور
+     * Find user by ID, clinic ID and role
+     */
+    @Query("SELECT u FROM User u WHERE u.id = :id AND u.clinic.id = :clinicId AND u.role = :role")
+    Optional<User> findByIdAndClinicIdAndRole(@Param("id") Long id,
+                                              @Param("clinicId") Long clinicId,
+                                              @Param("role") UserRole role);
 }

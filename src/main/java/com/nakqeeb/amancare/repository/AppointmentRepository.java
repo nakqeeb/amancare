@@ -19,6 +19,7 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * مستودع المواعيد - محدث مع جميع الدوال المطلوبة
@@ -204,4 +205,11 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     @Query("SELECT COUNT(a) FROM Appointment a WHERE a.clinic = :clinic " +
             "AND a.status IN ('CANCELLED', 'NO_SHOW')")
     long countCancelledAppointmentsByClinic(@Param("clinic") Clinic clinic);
+
+    /**
+     * البحث عن موعد حسب المعرف والعيادة
+     * Find appointment by ID and clinic ID
+     */
+    // @Query("SELECT a FROM Appointment a WHERE a.id = :id AND a.clinic.id = :clinicId")
+    Optional<Appointment> findByIdAndClinic(Long id, Clinic clinic);
 }

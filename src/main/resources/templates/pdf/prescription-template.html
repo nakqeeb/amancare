@@ -1,0 +1,197 @@
+<!-- =============================================================================
+2. Prescription Template
+src/main/resources/templates/pdf/prescription-template.html
+============================================================================= -->
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>الوصفة الطبية</title>
+    <style>
+        body {
+            font-family: 'NotoSansArabic', Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.4;
+            direction: rtl;
+            text-align: right;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .prescription-header {
+            text-align: center;
+            border: 2px solid #2c5aa0;
+            padding: 20px;
+            margin-bottom: 30px;
+            background-color: #f8f9fa;
+        }
+
+        .prescription-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 10px;
+        }
+
+        .prescription-subtitle {
+            font-size: 16px;
+            color: #666;
+        }
+
+        .prescription-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+        }
+
+        .medications-list {
+            border: 2px solid #2c5aa0;
+            border-radius: 10px;
+            padding: 20px;
+            background-color: white;
+        }
+
+        .medication-item {
+            border-bottom: 1px solid #dee2e6;
+            padding: 15px 0;
+            margin-bottom: 15px;
+        }
+
+        .medication-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .medication-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 8px;
+        }
+
+        .medication-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .medication-instructions {
+            background-color: #fffbf0;
+            border-right: 3px solid #ffc107;
+            padding: 8px;
+            margin-top: 8px;
+            border-radius: 0 5px 5px 0;
+        }
+
+        .prescription-footer {
+            margin-top: 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 50px;
+        }
+
+        .doctor-signature {
+            text-align: center;
+            border: 1px solid #333;
+            padding: 40px 20px 20px 20px;
+            position: relative;
+        }
+
+        .signature-line {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            border-bottom: 1px solid #333;
+            height: 30px;
+        }
+    </style>
+</head>
+<body>
+<!-- Prescription Header -->
+<div class="prescription-header">
+    <div class="prescription-title">℞ الوصفة الطبية</div>
+    <div class="prescription-subtitle" th:text="${medicalRecord.clinicName ?: 'أمان كير'}"></div>
+</div>
+
+<!-- Patient and Doctor Information -->
+<div class="prescription-info">
+    <div>
+        <h3>بيانات المريض:</h3>
+        <div><strong>الاسم:</strong> <span th:text="${medicalRecord.patientName}"></span></div>
+        <div><strong>رقم المريض:</strong> <span th:text="${medicalRecord.patientNumber}"></span></div>
+        <div><strong>تاريخ الزيارة:</strong> <span th:text="${formattedVisitDate}"></span></div>
+    </div>
+    <div>
+        <h3>بيانات الطبيب:</h3>
+        <div><strong>الاسم:</strong> <span th:text="${medicalRecord.doctorName}"></span></div>
+        <div th:if="${medicalRecord.doctorSpecialization}">
+            <strong>التخصص:</strong> <span th:text="${medicalRecord.doctorSpecialization}"></span>
+        </div>
+        <div><strong>تاريخ الوصفة:</strong> <span th:text="${currentDate}"></span></div>
+    </div>
+</div>
+
+<!-- Primary Diagnosis -->
+<div th:if="${primaryDiagnosis}" style="background-color: #f8f9fa; padding: 10px; margin-bottom: 20px; border-radius: 5px;">
+    <strong>التشخيص الأساسي:</strong> <span th:text="${primaryDiagnosis}"></span>
+</div>
+
+<!-- Medications -->
+<div class="medications-list">
+    <h3 style="text-align: center; margin-bottom: 20px; color: #2c5aa0;">الأدوية الموصوفة</h3>
+
+    <div th:each="prescription, iterStat : ${prescriptions}" class="medication-item">
+        <div class="medication-name" th:text="${iterStat.count} + '. ' + ${prescription.medicationName}"></div>
+
+        <div class="medication-details">
+            <div><strong>الجرعة:</strong> <span th:text="${prescription.dosage}"></span></div>
+            <div><strong>التكرار:</strong> <span th:text="${prescription.frequency}"></span></div>
+            <div><strong>المدة:</strong> <span th:text="${prescription.duration}"></span></div>
+            <div><strong>طريقة الإعطاء:</strong> <span th:text="${prescription.routeArabic}"></span></div>
+        </div>
+
+        <div th:if="${prescription.instructions}" class="medication-instructions">
+            <strong>تعليمات خاصة:</strong> <span th:text="${prescription.instructions}"></span>
+        </div>
+
+        <div th:if="${prescription.isPrn}" style="color: #dc3545; font-weight: bold; margin-top: 5px;">
+            ⚠️ عند الحاجة فقط
+        </div>
+    </div>
+</div>
+
+<!-- Footer with Signature -->
+<div class="prescription-footer">
+    <div class="doctor-signature">
+        <div class="signature-line"></div>
+        <div style="margin-top: 15px;">
+            <strong>توقيع الطبيب</strong><br />
+            <span th:text="${medicalRecord.doctorName}"></span>
+        </div>
+    </div>
+    <div style="padding: 20px; border: 1px solid #dee2e6;">
+        <h4>ملاحظات مهمة:</h4>
+        <ul style="font-size: 12px; color: #666;">
+            <li>يرجى إنهاء جرعة الدواء كاملة حتى لو شعرت بتحسن</li>
+            <li>في حالة ظهور أي أعراض جانبية، يرجى التوقف عن تناول الدواء ومراجعة الطبيب</li>
+            <li>احتفظ بالأدوية في مكان بارد وجاف وبعيداً عن متناول الأطفال</li>
+            <li>لا تتناول أي أدوية أخرى بدون استشارة طبية</li>
+        </ul>
+    </div>
+</div>
+
+<!-- Footer -->
+<div style="text-align: center; margin-top: 30px; font-size: 10px; color: #666;">
+    هذه الوصفة الطبية تم إنشاؤها إلكترونياً بواسطة نظام أمان كير<br />
+    للاستفسارات الطبية، يرجى التواصل مع العيادة
+</div>
+</body>
+</html>
