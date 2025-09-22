@@ -61,6 +61,8 @@ public class AuditLogService {
     public static final String ACTION_EXPORT = "EXPORT";
     public static final String ACTION_PAYMENT = "PAYMENT";
     public static final String ACTION_CANCEL = "CANCEL";
+    public static final String ACTION_ACTIVATE = "ACTIVATE";
+    public static final String ACTION_DEACTIVATE = "DEACTIVATE";
 
     // Resource type constants
     public static final String RESOURCE_PATIENT = "PATIENT";

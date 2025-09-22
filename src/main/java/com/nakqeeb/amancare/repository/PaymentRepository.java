@@ -116,4 +116,10 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p WHERE p.clinic = :clinic AND " +
             "p.paymentDate = CURRENT_DATE")
     BigDecimal getTodayTotalPayments(@Param("clinic") Clinic clinic);
+
+    /**
+     * المبلغ الإجمالي المدفوع للعيادة
+     */
+    @Query("SELECT COALESCE(SUM(p.amount), 0) FROM Payment p WHERE p.clinic = :clinic")
+    BigDecimal getTotalPaymentsByClinic(@Param("clinic") Clinic clinic);
 }

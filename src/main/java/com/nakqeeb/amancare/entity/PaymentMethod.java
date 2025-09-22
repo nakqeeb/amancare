@@ -1,10 +1,18 @@
 package com.nakqeeb.amancare.entity;
 
+/**
+ * طريقة الدفع
+ * Payment Method
+ */
 public enum PaymentMethod {
-    CASH("نقداً"),
-    CARD("بطاقة ائتمانية"),
-    BANK_TRANSFER("تحويل بنكي"),
-    INSURANCE("تأمين صحي");
+    CASH("نقدي"),
+    CREDIT_CARD("بطاقة ائتمان"),
+    DEBIT_CARD("بطاقة مدين"),
+    BANK_TRANSFER("حوالة بنكية"),
+    CHECK("شيك"),
+    INSURANCE("تأمين"),
+    INSTALLMENT("تقسيط"),
+    ONLINE("دفع إلكتروني");
 
     private final String arabicName;
 
@@ -12,5 +20,7 @@ public enum PaymentMethod {
         this.arabicName = arabicName;
     }
 
-    public String getArabicName() { return arabicName; }
+    public String getArabicName() {
+        return arabicName;
+    }
 }

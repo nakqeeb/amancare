@@ -84,12 +84,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findDoctorsWithClinicByClinicId(@Param("clinicId") Long clinicId);
 
     /**
-     * البحث عن الأطباء في العيادة
-     */
-    @Query("SELECT u FROM User u WHERE u.clinic = :clinic AND u.role = 'DOCTOR' AND u.isActive = true")
-    List<User> findDoctorsByClinic(@Param("clinic") Clinic clinic);
-
-    /**
      * البحث في المستخدمين حسب الاسم (مع دعم البحث الجزئي)
      */
     @Query("SELECT u FROM User u WHERE u.clinic = :clinic AND " +
@@ -122,4 +116,21 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT COUNT(u) FROM User u WHERE u.clinic = :clinic AND u.role = :role AND u.isActive = true")
     long countUsersByClinicAndRole(@Param("clinic") Clinic clinic, @Param("role") UserRole role);
+
+    /**
+     * Count all users in a clinic
+     */
+    long countByClinic(Clinic clinic);
+
+    /**
+     * Count users by role in a clinic
+     */
+    @Query("SELECT COUNT(u) FROM User u WHERE u.clinic = :clinic AND u.role = :role")
+    long countByClinicAndRole(@Param("clinic") Clinic clinic, @Param("role") UserRole role);
+
+    /**
+     * Find all doctors in a clinic
+     */
+    @Query("SELECT u FROM User u WHERE u.clinic = :clinic AND u.role = 'DOCTOR'")
+    List<User> findDoctorsByClinic(@Param("clinic") Clinic clinic);
 }

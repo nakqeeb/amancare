@@ -204,4 +204,17 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
             "GROUP BY p.bloodType")
     List<Object[]> countPatientsByBloodType(@Param("clinic") Clinic clinic);
 
+    /**
+     * Count non-deleted patients in a clinic
+     * This is for clinics that use soft delete (isDeleted flag)
+     */
+    // long countByClinicAndIsDeletedFalse(Clinic clinic);
+
+    // Alternative if you're using isActive instead of isDeleted:
+    /**
+     * Count active patients in a clinic (already exists as countActivePatientsByClinic)
+     * You can use the existing method instead
+     */
+    long countByClinicAndIsActiveTrue(Clinic clinic);
+
 }

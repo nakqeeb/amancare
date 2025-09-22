@@ -144,4 +144,82 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     BigDecimal getMonthlyRevenue(@Param("clinic") Clinic clinic,
                                  @Param("year") int year,
                                  @Param("month") int month);
+
+    @Query("SELECT COALESCE(SUM(i.totalAmount), 0) FROM Invoice i WHERE i.clinic = :clinic " +
+            "AND i.status = 'PAID'")
+    BigDecimal getTotalRevenueByClinic(@Param("clinic") Clinic clinic);
+
+    /**
+     * البحث عن الفواتير حسب العيادة مع ترقيم الصفحات
+     */
+    Page<Invoice> findByClinic(Clinic clinic, Pageable pageable);
+
+    /**
+     * البحث عن الفواتير حسب العيادة والحالة مع ترقيم الصفحات
+     */
+    Page<Invoice> findByClinicAndStatus(Clinic clinic, InvoiceStatus status, Pageable pageable);
+
+    /**
+     * البحث عن الفواتير في فترة زمنية مع ترقيم الصفحات
+     */
+    @Query("SELECT i FROM Invoice i WHERE i.clinic = :clinic AND " +
+            "i.invoiceDate BETWEEN :startDate AND :endDate ORDER BY i.invoiceDate DESC")
+    Page<Invoice> findByClinicAndDateRange(@Param("clinic") Clinic clinic,
+                                           @Param("startDate") LocalDate startDate,
+                                           @Param("endDate") LocalDate endDate,
+                                           Pageable pageable);
+
+    /**
+     * عد الفواتير حسب العيادة
+     */
+    long countByClinic(Clinic clinic);
+
+    /**
+     * عد الفواتير حسب العيادة والحالة
+     */
+    long countByClinicAndStatus(Clinic clinic, InvoiceStatus status);
+
+    /**
+     * عد الفواتير المتأخرة
+     */
+    @Query("SELECT COUNT(i) FROM Invoice i WHERE i.clinic = :clinic AND " +
+            "i.dueDate < CURRENT_DATE AND i.balanceDue > 0")
+    long countOverdueInvoices(@Param("clinic") Clinic clinic);
+
+    /**
+     * الحصول على الفواتير المتأخرة
+     */
+    @Query("SELECT i FROM Invoice i WHERE i.clinic = :clinic AND " +
+            "i.dueDate < :currentDate AND i.balanceDue > 0 " +
+            "ORDER BY i.dueDate ASC")
+    List<Invoice> findOverdueInvoices(@Param("clinic") Clinic clinic,
+                                      @Param("currentDate") LocalDate currentDate);
+
+    /**
+     * المبلغ الإجمالي المعلق
+     */
+    @Query("SELECT COALESCE(SUM(i.balanceDue), 0) FROM Invoice i WHERE i.clinic = :clinic " +
+            "AND i.status IN ('PENDING', 'SENT', 'VIEWED', 'PARTIALLY_PAID')")
+    BigDecimal getTotalPendingAmount(@Param("clinic") Clinic clinic);
+
+    /**
+     * المبلغ الإجمالي المتأخر
+     */
+    @Query("SELECT COALESCE(SUM(i.balanceDue), 0) FROM Invoice i WHERE i.clinic = :clinic " +
+            "AND i.dueDate < CURRENT_DATE AND i.balanceDue > 0")
+    BigDecimal getTotalOverdueAmount(@Param("clinic") Clinic clinic);
+
+    /**
+     * عد الفواتير حسب التاريخ
+     */
+    long countByClinicAndInvoiceDate(Clinic clinic, LocalDate date);
+
+    /**
+     * عد الفواتير حسب الشهر
+     */
+    @Query("SELECT COUNT(i) FROM Invoice i WHERE i.clinic = :clinic AND " +
+            "YEAR(i.invoiceDate) = :year AND MONTH(i.invoiceDate) = :month")
+    long countByClinicAndMonth(@Param("clinic") Clinic clinic,
+                               @Param("year") int year,
+                               @Param("month") int month);
 }

@@ -159,4 +159,49 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     Page<Appointment> searchAppointments(@Param("clinic") Clinic clinic,
                                          @Param("search") String search,
                                          Pageable pageable);
+
+    /**
+     * Count all appointments in a clinic
+     */
+    long countByClinic(Clinic clinic);
+
+    /**
+     * Count today's appointments in a clinic
+     */
+    @Query("SELECT COUNT(a) FROM Appointment a WHERE a.clinic = :clinic " +
+            "AND DATE(a.appointmentDate) = :date " +
+            "AND a.status NOT IN ('CANCELLED', 'NO_SHOW')")
+    long countTodayAppointmentsByClinic(@Param("clinic") Clinic clinic,
+                                        @Param("date") LocalDate date);
+
+    /**
+     * Count appointments by status in a clinic
+     */
+    @Query("SELECT COUNT(a) FROM Appointment a WHERE a.clinic = :clinic AND a.status = :status")
+    long countByClinicAndStatus(@Param("clinic") Clinic clinic,
+                                @Param("status") AppointmentStatus status);
+
+    /**
+     * Find upcoming appointments in a clinic
+     */
+    @Query("SELECT a FROM Appointment a WHERE a.clinic = :clinic " +
+            "AND a.appointmentDate >= :fromDate " +
+            "AND a.status IN ('SCHEDULED', 'CONFIRMED') " +
+            "ORDER BY a.appointmentDate ASC")
+    List<Appointment> findUpcomingAppointmentsByClinic(@Param("clinic") Clinic clinic,
+                                                       @Param("fromDate") LocalDate fromDate);
+
+    /**
+     * Count completed appointments in a clinic
+     */
+    @Query("SELECT COUNT(a) FROM Appointment a WHERE a.clinic = :clinic " +
+            "AND a.status = 'COMPLETED'")
+    long countCompletedAppointmentsByClinic(@Param("clinic") Clinic clinic);
+
+    /**
+     * Count cancelled appointments in a clinic
+     */
+    @Query("SELECT COUNT(a) FROM Appointment a WHERE a.clinic = :clinic " +
+            "AND a.status IN ('CANCELLED', 'NO_SHOW')")
+    long countCancelledAppointmentsByClinic(@Param("clinic") Clinic clinic);
 }

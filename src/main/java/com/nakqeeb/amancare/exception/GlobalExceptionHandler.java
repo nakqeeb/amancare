@@ -364,4 +364,55 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
+
+    /**
+     * Handle DuplicateResourceException
+     */
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<ApiResponse<Object>> handleDuplicateResourceException(
+            DuplicateResourceException ex, WebRequest request) {
+
+        logger.error("Duplicate resource: {}", ex.getMessage());
+
+        ApiResponse<Object> response = new ApiResponse<>();
+        response.setSuccess(false);
+        response.setMessage(ex.getMessage());
+        response.setData(createErrorDetails(ex, request));
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
+    /**
+     * Handle ConflictException
+     */
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ApiResponse<Object>> handleConflictException(
+            ConflictException ex, WebRequest request) {
+
+        logger.error("Conflict: {}", ex.getMessage());
+
+        ApiResponse<Object> response = new ApiResponse<>();
+        response.setSuccess(false);
+        response.setMessage(ex.getMessage());
+        response.setData(createErrorDetails(ex, request));
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
+    /**
+     * Handle ForbiddenOperationException
+     */
+    @ExceptionHandler(ForbiddenOperationException.class)
+    public ResponseEntity<ApiResponse<Object>> handleForbiddenOperationException(
+            ForbiddenOperationException ex, WebRequest request) {
+
+        logger.error("Forbidden operation: {}", ex.getMessage());
+
+        ApiResponse<Object> response = new ApiResponse<>();
+        response.setSuccess(false);
+        response.setMessage(ex.getMessage());
+        response.setData(createErrorDetails(ex, request));
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
 }
