@@ -1,15 +1,18 @@
 // =============================================================================
-// Simple Controller Fix - Avoid Clinic Dependencies for Doctors Endpoint
+// Refactored UserController - Uses Service Layer Only
 // =============================================================================
 
 package com.nakqeeb.amancare.controller;
 
+import com.nakqeeb.amancare.annotation.SystemAdminContext;
 import com.nakqeeb.amancare.dto.response.ApiResponse;
+import com.nakqeeb.amancare.dto.response.ClinicUserResponse;
+import com.nakqeeb.amancare.dto.response.ClinicUserStats;
 import com.nakqeeb.amancare.entity.Clinic;
 import com.nakqeeb.amancare.entity.User;
 import com.nakqeeb.amancare.entity.UserRole;
-import com.nakqeeb.amancare.repository.UserRepository;
 import com.nakqeeb.amancare.security.UserPrincipal;
+import com.nakqeeb.amancare.service.ClinicContextService;
 import com.nakqeeb.amancare.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -22,7 +25,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -40,10 +42,10 @@ public class UserController {
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
     @Autowired
-    private UserRepository userRepository;
+    private UserService userService;
 
     @Autowired
-    private UserService userService;
+    private ClinicContextService clinicContextService;
 
     /**
      * الحصول على جميع الأطباء - حل بسيط بدون تعقيدات
@@ -51,7 +53,6 @@ public class UserController {
      */
     @GetMapping("/doctors")
     @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
-    @Transactional(readOnly = true) // Keep session open for this method
     @Operation(
             summary = "👨‍⚕️ قائمة الأطباء",
             description = "الحصول على جميع الأطباء في العيادة"
@@ -66,32 +67,204 @@ public class UserController {
             @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
             @RequestParam(required = false) Long clinicId) {
         try {
-            // For READ operations, SYSTEM_ADMIN doesn't need context
+            // Determine clinic ID based on user role
             Long effectiveClinicId;
             if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
-                // SYSTEM_ADMIN can specify clinic or get all
                 effectiveClinicId = clinicId; // Can be null to get all clinics
-                logger.info("SYSTEM_ADMIN reading all doctors from clinic: {}",
+                logger.info("SYSTEM_ADMIN reading doctors from clinic: {}",
                         clinicId != null ? clinicId : "ALL");
             } else {
-                // Other users can only see their clinic
                 effectiveClinicId = currentUser.getClinicId();
             }
-            List<User> doctors = userRepository.findByClinicIdAndRoleAndIsActiveTrue(
-                    effectiveClinicId,
-                    UserRole.DOCTOR
-            );
+
+            // Get doctors through service
+            List<User> doctors = userService.getDoctorsByClinic(effectiveClinicId);
 
             List<DoctorResponse> doctorResponses = doctors.stream()
                     .map(DoctorResponse::fromEntity)
-                    .toList();
+                    .collect(Collectors.toList());
 
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم الحصول على قائمة الأطباء بنجاح", doctorResponses)
             );
         } catch (Exception e) {
+            logger.error("Error fetching doctors: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse<>(false, "فشل في الحصول على قائمة الأطباء: " + e.getMessage(), null));
+        }
+    }
+
+    /**
+     * الحصول على جميع المستخدمين في العيادة مع إمكانية الفلترة حسب الدور
+     * Get all clinic users with optional role filtering - For ADMIN only
+     */
+    @GetMapping("/clinic-users")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN')")
+    @Operation(
+            summary = "👥 قائمة مستخدمي العيادة",
+            description = "الحصول على جميع المستخدمين في العيادة (أطباء، ممرضين، موظفي استقبال) مع إمكانية الفلترة حسب الدور"
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "تم الحصول على قائمة المستخدمين بنجاح"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "غير مصرح - يجب تسجيل الدخول"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ممنوع - صلاحيات غير كافية"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "معاملات غير صحيحة")
+    })
+    public ResponseEntity<ApiResponse<List<ClinicUserResponse>>> getClinicUsers(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId,
+            @Parameter(description = "فلترة حسب الدور (DOCTOR, NURSE, RECEPTIONIST)")
+            @RequestParam(required = false) String role,
+            @Parameter(description = "عرض المستخدمين النشطين فقط", example = "true")
+            @RequestParam(required = false, defaultValue = "true") boolean activeOnly) {
+
+        try {
+            logger.info("Controller: Getting clinic users for admin {}, role: {}, activeOnly: {}",
+                    currentUser.getUsername(), role, activeOnly);
+
+            // Determine clinic ID based on user role
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN reading users from clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                effectiveClinicId = currentUser.getClinicId();
+            }
+
+            // Call service method
+            List<ClinicUserResponse> users = userService.getClinicUsers(effectiveClinicId, role, activeOnly);
+
+            return ResponseEntity.ok(new ApiResponse<>(true,
+                    "تم الحصول على قائمة المستخدمين بنجاح",
+                    users));
+
+        } catch (IllegalArgumentException e) {
+            logger.error("Invalid argument: ", e);
+            return ResponseEntity.badRequest()
+                    .body(new ApiResponse<>(false, e.getMessage(), null));
+        } catch (Exception e) {
+            logger.error("Error fetching clinic users: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse<>(false, "حدث خطأ في الحصول على قائمة المستخدمين", null));
+        }
+    }
+
+    /**
+     * الحصول على إحصائيات المستخدمين في العيادة
+     * Get clinic users statistics
+     */
+    @GetMapping("/clinic-users/stats")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN')")
+    @Operation(
+            summary = "📊 إحصائيات مستخدمي العيادة",
+            description = "الحصول على إحصائيات المستخدمين في العيادة حسب الأدوار"
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "تم الحصول على الإحصائيات بنجاح"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "غير مصرح"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ممنوع")
+    })
+    public ResponseEntity<ApiResponse<ClinicUserStats>> getClinicUserStats(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId) {
+
+        try {
+            logger.info("Controller: Getting clinic stats for admin {}", currentUser.getUsername());
+
+            // Determine clinic ID based on user role
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN reading stats from clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                effectiveClinicId = currentUser.getClinicId();
+            }
+
+            // Call service method
+            ClinicUserStats stats = userService.getClinicUserStats(effectiveClinicId);
+
+            return ResponseEntity.ok(new ApiResponse<>(true,
+                    "تم الحصول على الإحصائيات بنجاح",
+                    stats));
+
+        } catch (Exception e) {
+            logger.error("Error fetching clinic user stats: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse<>(false, "حدث خطأ في الحصول على الإحصائيات", null));
+        }
+    }
+
+    /**
+     * Get specific clinic user by ID
+     */
+    @GetMapping("/clinic-users/{userId}")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN')")
+    @Operation(
+            summary = "👤 الحصول على معلومات مستخدم محدد",
+            description = "الحصول على معلومات مستخدم محدد في العيادة"
+    )
+    public ResponseEntity<ApiResponse<ClinicUserResponse>> getClinicUserById(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId,
+            @PathVariable Long userId) {
+
+        try {
+            // Determine clinic ID based on user role
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN reading clinic user by ID from clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                effectiveClinicId = currentUser.getClinicId();
+            }
+            ClinicUserResponse user = userService.getClinicUserById(effectiveClinicId, userId);
+            return ResponseEntity.ok(new ApiResponse<>(true,
+                    "تم الحصول على معلومات المستخدم بنجاح",
+                    user));
+        } catch (Exception e) {
+            logger.error("Error fetching user {}: ", userId, e);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Toggle user active status
+     */
+    @PutMapping("/clinic-users/{userId}/toggle-status")
+    @SystemAdminContext
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN')")
+    @Operation(
+            summary = "🔄 تغيير حالة المستخدم",
+            description = "تفعيل أو تعطيل مستخدم في العيادة"
+    )
+    public ResponseEntity<ApiResponse<ClinicUserResponse>> toggleUserStatus(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @PathVariable Long userId,
+            @RequestParam boolean isActive) {
+
+        try {
+            // Log if SYSTEM_ADMIN is acting with context
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                ClinicContextService.ClinicContextInfo contextInfo =
+                        clinicContextService.getCurrentContext(currentUser);
+                logger.info("SYSTEM_ADMIN is updating a patient with clinic context. ActingClinicId: {}, Reason: {}",
+                        contextInfo.getActingAsClinicId(), contextInfo.getReason());
+            }
+
+            ClinicUserResponse user = userService.toggleClinicUserStatus(currentUser, userId, isActive);
+            String message = isActive ? "تم تفعيل المستخدم بنجاح" : "تم تعطيل المستخدم بنجاح";
+            return ResponseEntity.ok(new ApiResponse<>(true, message, user));
+        } catch (Exception e) {
+            logger.error("Error toggling user status {}: ", userId, e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse<>(false, e.getMessage(), null));
         }
     }
 
@@ -101,10 +274,9 @@ public class UserController {
      */
     @GetMapping("/clinics")
     @PreAuthorize("hasRole('SYSTEM_ADMIN')")
-    @Transactional(readOnly = true)
     @Operation(
             summary = "🏥 قائمة العيادات",
-            description = "(الحصول على جميع العيادات من خلال مستخدمي ADMIN) (بواسطة SYSTEM_ADMIN)"
+            description = "الحصول على جميع العيادات من خلال مستخدمي ADMIN (بواسطة SYSTEM_ADMIN)"
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "تم الحصول على قائمة العيادات بنجاح"),
@@ -128,9 +300,10 @@ public class UserController {
         }
     }
 
+    // =================== Response DTOs (Keep these for backward compatibility) ===================
+
     /**
-     * استجابة مبسطة للأطباء - بدون تعقيدات Lazy Loading
-     * Simple doctor response - no lazy loading complications
+     * Simple doctor response DTO
      */
     public static class DoctorResponse {
         public Long id;
@@ -150,6 +323,9 @@ public class UserController {
         }
     }
 
+    /**
+     * Clinic response DTO
+     */
     public static class ClinicResponse {
         public Long id;
         public String name;
@@ -171,11 +347,13 @@ public class UserController {
             response.isActive = clinic.getIsActive();
             response.subscriptionPlan = clinic.getSubscriptionPlan() != null ?
                     clinic.getSubscriptionPlan().name() : null;
-
             return response;
         }
     }
 
+    /**
+     * Admin user response DTO
+     */
     public static class AdminUserResponse {
         public Long id;
         public String username;
