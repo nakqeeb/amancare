@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Set;
 
 /**
@@ -83,6 +84,11 @@ public class AuthService {
         if (!user.getIsActive()) {
             throw new RuntimeException("لم يتم تفعيل حسابك بعد. يرجى التحقق من بريدك الإلكتروني");
         }
+
+        // Update last login timestamp
+        user.setLastLogin(LocalDateTime.now());
+        userRepository.save(user);
+
         String jwt = tokenProvider.generateToken(authentication);
         String refreshToken = tokenProvider.generateRefreshToken(
                 ((UserPrincipal) authentication.getPrincipal()).getId()

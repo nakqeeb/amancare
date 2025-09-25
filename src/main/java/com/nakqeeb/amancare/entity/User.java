@@ -9,6 +9,8 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import java.time.LocalDateTime;
+
 /**
  * كيان المستخدم
  */
@@ -65,6 +67,9 @@ public class User extends BaseEntity {
     @Column(name = "is_active")
     private Boolean isActive = false;
 
+    @Column(name = "last_login")
+    private LocalDateTime lastLogin;
+
     // Constructors
     public User() {}
 
@@ -114,4 +119,7 @@ public class User extends BaseEntity {
 
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean isActive) { this.isActive = isActive; }
+
+    public LocalDateTime getLastLogin() { return lastLogin; }
+    public void setLastLogin(LocalDateTime lastLogin) { this.lastLogin = lastLogin; }
 }

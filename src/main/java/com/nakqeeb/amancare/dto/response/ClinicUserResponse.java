@@ -21,6 +21,7 @@ public class ClinicUserResponse {
     private Boolean isActive;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime lastLogin;
 
     // Default constructor
     public ClinicUserResponse() {}
@@ -41,6 +42,7 @@ public class ClinicUserResponse {
         response.isActive = user.getIsActive();
         response.createdAt = user.getCreatedAt();
         response.updatedAt = user.getUpdatedAt();
+        response.lastLogin = user.getLastLogin();
 
         return response;
     }
@@ -84,4 +86,7 @@ public class ClinicUserResponse {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public LocalDateTime getLastLogin() { return lastLogin; }
+    public void setLastLogin(LocalDateTime lastLogin) { this.lastLogin = lastLogin; }
 }

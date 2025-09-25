@@ -24,6 +24,7 @@ public class UserResponse {
     private boolean active;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime lastLogin;
 
 
     // Constructors
@@ -46,6 +47,7 @@ public class UserResponse {
         response.setActive(user.getIsActive());
         response.setCreatedAt(user.getCreatedAt());
         response.setUpdatedAt(user.getUpdatedAt());
+        response.setLastLogin(user.getLastLogin());
         return response;
     }
 
@@ -58,6 +60,7 @@ public class UserResponse {
         response.setRole(UserRole.valueOf(userPrincipal.getRole()));
         response.setClinicId(userPrincipal.getClinicId());
         response.setActive(userPrincipal.isEnabled());
+        // Note: lastLogin cannot be set from UserPrincipal, needs to be fetched from database if needed
         return response;
     }
 
@@ -113,4 +116,7 @@ public class UserResponse {
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
+
+    public LocalDateTime getLastLogin() { return lastLogin; }
+    public void setLastLogin(LocalDateTime lastLogin) { this.lastLogin = lastLogin; }
 }
