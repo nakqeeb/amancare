@@ -377,30 +377,6 @@ public class UserService {
         userToUpdate.setUpdatedAt(LocalDateTime.now());
     }
 
-    /**
-     * تحديث كلمة المرور فقط (طريقة منفصلة)
-     * Update password only (separate method)
-     */
-    @Transactional
-    public void updateUserPassword(Long userId, String newPassword, UserPrincipal currentUser) {
-        logger.info("تحديث كلمة المرور للمستخدم: {}", userId);
-
-        User userToUpdate = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("المستخدم غير موجود بالمعرف: " + userId));
-
-        // التحقق من الصلاحيات
-        validateUpdatePermissions(userToUpdate, currentUser);
-
-        // تحديث كلمة المرور
-        String encodedPassword = passwordEncoder.encode(newPassword);
-        userToUpdate.setPasswordHash(encodedPassword);
-        userToUpdate.setUpdatedAt(LocalDateTime.now());
-
-        userRepository.save(userToUpdate);
-
-        logger.info("تم تحديث كلمة المرور بنجاح للمستخدم: {}", userId);
-    }
-
     // =================== HELPER METHODS ===================
 
     /**

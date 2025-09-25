@@ -395,59 +395,6 @@ public class UserController {
             return ResponseEntity.ok(response);
     }
 
-    /**
-     * تحديث كلمة المرور فقط
-     * Update User Password Only
-     */
-    @PatchMapping("/{id}/password")
-    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
-    @Operation(
-            summary = "تحديث كلمة مرور المستخدم",
-            description = """
-            تحديث كلمة مرور المستخدم فقط.
-            
-            **قواعد الصلاحيات:**
-            - **مدير النظام**: يمكنه تحديث كلمة مرور أي مستخدم
-            - **مدير العيادة**: يمكنه تحديث كلمة مرور المستخدمين في عيادته
-            - **المستخدمون الآخرون**: يمكنهم تحديث كلمة مرورهم فقط
-            """
-    )
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "تم تحديث كلمة المرور بنجاح"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "403",
-                    description = "ممنوع - ليس لديك صلاحية"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "404",
-                    description = "المستخدم غير موجود"
-            )
-    })
-    public ResponseEntity<ApiResponse<String>> updateUserPassword(
-            @Parameter(description = "معرف المستخدم", required = true)
-            @PathVariable Long id,
-
-            @Parameter(description = "كلمة المرور الجديدة", required = true)
-            @RequestBody @Valid PasswordUpdateRequest passwordRequest,
-
-            @Parameter(hidden = true)
-            @AuthenticationPrincipal UserPrincipal currentUser) {
-
-        logger.info("طلب تحديث كلمة المرور للمستخدم: {}", id);
-
-        userService.updateUserPassword(id, passwordRequest.getNewPassword(), currentUser);
-
-        ApiResponse<String> response = new ApiResponse<>();
-        response.setSuccess(true);
-        response.setMessage("تم تحديث كلمة المرور بنجاح");
-        response.setData("تم تحديث كلمة المرور");
-
-        return ResponseEntity.ok(response);
-    }
-
 
     // =================== Response DTOs (Keep these for backward compatibility) ===================
 

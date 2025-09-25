@@ -11598,3 +11598,148 @@ com.nakqeeb.amancare.exception.ForbiddenOperationException: لا يمكن الو
         username=? 
     where
         id=?
+2025-09-25 13:02:36 [restartedMain] INFO  c.n.amancare.AmancareApplication - Starting AmancareApplication using Java 24.0.1 with PID 12735 (/Users/khaledyafey/MyProjects/spring-boot/amancare/target/classes started by khaledyafey in /Users/khaledyafey/MyProjects/spring-boot/amancare)
+2025-09-25 13:02:36 [restartedMain] INFO  c.n.amancare.AmancareApplication - No active profile set, falling back to 1 default profile: "default"
+2025-09-25 13:02:36 [restartedMain] INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2025-09-25 13:02:36 [restartedMain] INFO  o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2025-09-25 13:02:37 [restartedMain] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-09-25 13:02:37 [restartedMain] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 49 ms. Found 15 JPA repository interfaces.
+2025-09-25 13:02:37 [restartedMain] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2025-09-25 13:02:37 [restartedMain] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2025-09-25 13:02:37 [restartedMain] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.44]
+2025-09-25 13:02:37 [restartedMain] INFO  o.a.c.c.C.[.[localhost].[/api/v1] - Initializing Spring embedded WebApplicationContext
+2025-09-25 13:02:37 [restartedMain] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1204 ms
+2025-09-25 13:02:38 [restartedMain] INFO  o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-09-25 13:02:38 [restartedMain] INFO  org.hibernate.Version - HHH000412: Hibernate ORM core version 6.6.26.Final
+2025-09-25 13:02:38 [restartedMain] INFO  o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2025-09-25 13:02:38 [restartedMain] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2025-09-25 13:02:38 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-09-25 13:02:38 [restartedMain] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@1783b814
+2025-09-25 13:02:38 [restartedMain] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-09-25 13:02:38 [restartedMain] WARN  org.hibernate.orm.deprecation - HHH90000025: MySQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2025-09-25 13:02:38 [restartedMain] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+	Database JDBC URL [Connecting through datasource 'HikariDataSource (HikariPool-1)']
+	Database driver: undefined/unknown
+	Database version: 9.0
+	Autocommit mode: undefined/unknown
+	Isolation level: undefined/unknown
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2025-09-25 13:02:39 [restartedMain] INFO  o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2025-09-25 13:02:39 [restartedMain] DEBUG org.hibernate.SQL - 
+    alter table audit_logs 
+       modify column severity enum ('CRITICAL','ERROR','INFO','WARNING')
+2025-09-25 13:02:39 [restartedMain] DEBUG org.hibernate.SQL - 
+    alter table invoice_items 
+       modify column category enum ('CONSULTATION','EQUIPMENT','LAB_TEST','MEDICATION','OTHER','PROCEDURE','RADIOLOGY','SURGERY','THERAPY','VACCINATION') not null
+2025-09-25 13:02:39 [restartedMain] DEBUG org.hibernate.SQL - 
+    alter table medical_record_diagnoses 
+       modify column type enum ('DIFFERENTIAL','FINAL','PRIMARY','PROVISIONAL','RULED_OUT','SECONDARY') not null
+2025-09-25 13:02:39 [restartedMain] DEBUG org.hibernate.SQL - 
+    alter table medical_record_lab_tests 
+       modify column category enum ('BIOCHEMISTRY','CARDIOLOGY','COAGULATION','ENDOCRINOLOGY','GENETICS','HEMATOLOGY','HEPATOLOGY','IMMUNOLOGY','MICROBIOLOGY','NEPHROLOGY','ONCOLOGY','TOXICOLOGY') not null
+2025-09-25 13:02:39 [restartedMain] DEBUG org.hibernate.SQL - 
+    alter table medical_record_lab_tests 
+       modify column status enum ('CANCELLED','COLLECTED','COMPLETED','DELAYED','IN_PROGRESS','ORDERED') not null
+2025-09-25 13:02:39 [restartedMain] DEBUG org.hibernate.SQL - 
+    alter table medical_record_lab_tests 
+       modify column urgency enum ('ASAP','ROUTINE','STAT','URGENT') not null
+2025-09-25 13:02:39 [restartedMain] DEBUG org.hibernate.SQL - 
+    alter table medical_record_prescriptions 
+       modify column route enum ('INHALATION','INJECTION','INTRAMUSCULAR','INTRAVENOUS','NASAL','OPHTHALMIC','ORAL','OTIC','RECTAL','SUBCUTANEOUS','SUBLINGUAL','TOPICAL') not null
+2025-09-25 13:02:39 [restartedMain] DEBUG org.hibernate.SQL - 
+    alter table medical_record_procedures 
+       modify column category enum ('COSMETIC','DIAGNOSTIC','EMERGENCY','PREVENTIVE','REHABILITATION','SURGICAL','THERAPEUTIC') not null
+2025-09-25 13:02:39 [restartedMain] DEBUG org.hibernate.SQL - 
+    alter table medical_record_radiology_tests 
+       modify column status enum ('CANCELLED','COLLECTED','COMPLETED','DELAYED','IN_PROGRESS','ORDERED') not null
+2025-09-25 13:02:39 [restartedMain] DEBUG org.hibernate.SQL - 
+    alter table medical_record_radiology_tests 
+       modify column test_type enum ('ANGIOGRAPHY','BONE_SCAN','CT_SCAN','FLUOROSCOPY','MAMMOGRAPHY','MRI','NUCLEAR_MEDICINE','PET_SCAN','ULTRASOUND','X_RAY') not null
+2025-09-25 13:02:39 [restartedMain] DEBUG org.hibernate.SQL - 
+    alter table medical_record_radiology_tests 
+       modify column urgency enum ('ASAP','ROUTINE','STAT','URGENT') not null
+2025-09-25 13:02:39 [restartedMain] DEBUG org.hibernate.SQL - 
+    alter table medical_record_referrals 
+       modify column priority enum ('EMERGENCY','ROUTINE','URGENT') not null
+2025-09-25 13:02:39 [restartedMain] DEBUG org.hibernate.SQL - 
+    alter table medical_record_referrals 
+       modify column referral_type enum ('DENTISTRY','EMERGENCY','ENT','HOSPITAL','LABORATORY','OPHTHALMOLOGY','PHYSIOTHERAPY','PSYCHIATRY','RADIOLOGY','SPECIALIST') not null
+2025-09-25 13:02:39 [restartedMain] DEBUG org.hibernate.SQL - 
+    alter table medical_records 
+       modify column status enum ('CANCELLED','COMPLETED','DRAFT','IN_PROGRESS','LOCKED','REVIEWED') not null
+2025-09-25 13:02:39 [restartedMain] DEBUG org.hibernate.SQL - 
+    alter table medical_records 
+       modify column visit_type enum ('CHRONIC_CARE','CONSULTATION','EMERGENCY','FOLLOW_UP','PREVENTIVE_CARE','PROCEDURE','REHABILITATION','ROUTINE_CHECKUP','SURGERY','VACCINATION') not null
+2025-09-25 13:02:39 [restartedMain] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-09-25 13:02:39 [restartedMain] INFO  o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+2025-09-25 13:02:40 [restartedMain] INFO  c.n.a.config.WebConverterConfig - WebConverterConfig initialized - Custom converters will be registered
+2025-09-25 13:02:40 [restartedMain] INFO  c.n.a.config.WebConverterConfig - Supported BloodType formats: O+, O-, A+, A-, B+, B-, AB+, AB-, O_POSITIVE, etc.
+2025-09-25 13:02:40 [restartedMain] INFO  c.n.a.config.WebConverterConfig - Supported Gender formats: MALE, FEMALE, M, F, ذكر, أنثى
+2025-09-25 13:02:41 [restartedMain] INFO  o.s.s.c.a.a.c.InitializeAuthenticationProviderBeanManagerConfigurer$InitializeAuthenticationProviderManagerConfigurer - Global AuthenticationManager configured with AuthenticationProvider bean with name authenticationProvider
+2025-09-25 13:02:41 [restartedMain] WARN  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with an AuthenticationProvider bean. UserDetailsService beans will not be used by Spring Security for automatically configuring username/password login. Consider removing the AuthenticationProvider bean. Alternatively, consider using the UserDetailsService in a manually instantiated DaoAuthenticationProvider. If the current configuration is intentional, to turn off this warning, increase the logging level of 'org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer' to ERROR
+2025-09-25 13:02:41 [restartedMain] INFO  c.n.a.config.WebConverterConfig - Registered converter: StringToBloodTypeConverter
+2025-09-25 13:02:41 [restartedMain] INFO  c.n.a.config.WebConverterConfig - Registered converter: StringToGenderConverter
+2025-09-25 13:02:41 [restartedMain] DEBUG o.s.s.web.DefaultSecurityFilterChain - Will secure any request with filters: DisableEncodeUrlFilter, WebAsyncManagerIntegrationFilter, SecurityContextHolderFilter, HeaderWriterFilter, CorsFilter, LogoutFilter, JwtAuthenticationFilter, RequestCacheAwareFilter, SecurityContextHolderAwareRequestFilter, AnonymousAuthenticationFilter, SessionManagementFilter, ExceptionTranslationFilter, AuthorizationFilter
+2025-09-25 13:02:42 [restartedMain] INFO  o.s.b.d.a.OptionalLiveReloadServer - LiveReload server is running on port 35729
+2025-09-25 13:02:42 [restartedMain] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/api/v1'
+2025-09-25 13:02:42 [restartedMain] INFO  c.n.amancare.AmancareApplication - Started AmancareApplication in 5.923 seconds (process running for 6.206)
+2025-09-25 13:02:42 [scheduling-1] DEBUG org.hibernate.SQL - 
+    /* DELETE 
+    FROM
+        PasswordResetToken p 
+    WHERE
+        p.expiryDate < :now */ delete prt1_0 
+    from
+        password_reset_tokens prt1_0 
+    where
+        prt1_0.expiry_date<?
+2025-09-25 13:02:42 [scheduling-1] INFO  c.n.a.service.PasswordResetService - تم تنظيف الرموز المنتهية الصلاحية
+2025-09-25 13:02:42 [scheduling-1] DEBUG org.hibernate.SQL - 
+    /* DELETE 
+    FROM
+        EmailVerificationToken e 
+    WHERE
+        e.expiryDate < :now */ delete evt1_0 
+    from
+        email_verification_tokens evt1_0 
+    where
+        evt1_0.expiry_date<?
+2025-09-25 13:02:42 [scheduling-1] INFO  c.n.a.s.EmailVerificationService - تم تنظيف رموز تأكيد البريد الإلكتروني المنتهية الصلاحية
+2025-09-25 13:02:45 [http-nio-8080-exec-1] INFO  o.a.c.c.C.[.[localhost].[/api/v1] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2025-09-25 13:02:45 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2025-09-25 13:02:45 [http-nio-8080-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 1 ms
+2025-09-25 13:02:45 [http-nio-8080-exec-1] DEBUG o.s.security.web.FilterChainProxy - Securing GET /swagger-ui/index.html
+2025-09-25 13:02:45 [http-nio-8080-exec-1] DEBUG o.s.s.w.a.AnonymousAuthenticationFilter - Set SecurityContextHolder to anonymous SecurityContext
+2025-09-25 13:02:45 [http-nio-8080-exec-1] DEBUG o.s.security.web.FilterChainProxy - Secured GET /swagger-ui/index.html
+2025-09-25 13:02:45 [http-nio-8080-exec-3] DEBUG o.s.security.web.FilterChainProxy - Securing GET /swagger-ui/index.css
+2025-09-25 13:02:45 [http-nio-8080-exec-6] DEBUG o.s.security.web.FilterChainProxy - Securing GET /swagger-ui/swagger-initializer.js
+2025-09-25 13:02:45 [http-nio-8080-exec-2] DEBUG o.s.security.web.FilterChainProxy - Securing GET /swagger-ui/swagger-ui.css
+2025-09-25 13:02:45 [http-nio-8080-exec-3] DEBUG o.s.s.w.a.AnonymousAuthenticationFilter - Set SecurityContextHolder to anonymous SecurityContext
+2025-09-25 13:02:45 [http-nio-8080-exec-3] DEBUG o.s.security.web.FilterChainProxy - Secured GET /swagger-ui/index.css
+2025-09-25 13:02:45 [http-nio-8080-exec-4] DEBUG o.s.security.web.FilterChainProxy - Securing GET /swagger-ui/swagger-ui-bundle.js
+2025-09-25 13:02:45 [http-nio-8080-exec-2] DEBUG o.s.s.w.a.AnonymousAuthenticationFilter - Set SecurityContextHolder to anonymous SecurityContext
+2025-09-25 13:02:45 [http-nio-8080-exec-6] DEBUG o.s.s.w.a.AnonymousAuthenticationFilter - Set SecurityContextHolder to anonymous SecurityContext
+2025-09-25 13:02:45 [http-nio-8080-exec-4] DEBUG o.s.s.w.a.AnonymousAuthenticationFilter - Set SecurityContextHolder to anonymous SecurityContext
+2025-09-25 13:02:45 [http-nio-8080-exec-2] DEBUG o.s.security.web.FilterChainProxy - Secured GET /swagger-ui/swagger-ui.css
+2025-09-25 13:02:45 [http-nio-8080-exec-6] DEBUG o.s.security.web.FilterChainProxy - Secured GET /swagger-ui/swagger-initializer.js
+2025-09-25 13:02:45 [http-nio-8080-exec-4] DEBUG o.s.security.web.FilterChainProxy - Secured GET /swagger-ui/swagger-ui-bundle.js
+2025-09-25 13:02:45 [http-nio-8080-exec-5] DEBUG o.s.security.web.FilterChainProxy - Securing GET /swagger-ui/swagger-ui-standalone-preset.js
+2025-09-25 13:02:45 [http-nio-8080-exec-5] DEBUG o.s.s.w.a.AnonymousAuthenticationFilter - Set SecurityContextHolder to anonymous SecurityContext
+2025-09-25 13:02:45 [http-nio-8080-exec-5] DEBUG o.s.security.web.FilterChainProxy - Secured GET /swagger-ui/swagger-ui-standalone-preset.js
+2025-09-25 13:02:45 [http-nio-8080-exec-8] DEBUG o.s.security.web.FilterChainProxy - Securing GET /swagger-ui/favicon-32x32.png
+2025-09-25 13:02:45 [http-nio-8080-exec-8] DEBUG o.s.s.w.a.AnonymousAuthenticationFilter - Set SecurityContextHolder to anonymous SecurityContext
+2025-09-25 13:02:45 [http-nio-8080-exec-8] DEBUG o.s.security.web.FilterChainProxy - Secured GET /swagger-ui/favicon-32x32.png
+2025-09-25 13:02:45 [http-nio-8080-exec-7] DEBUG o.s.security.web.FilterChainProxy - Securing GET /docs/swagger-config
+2025-09-25 13:02:45 [http-nio-8080-exec-7] DEBUG o.s.s.w.a.AnonymousAuthenticationFilter - Set SecurityContextHolder to anonymous SecurityContext
+2025-09-25 13:02:45 [http-nio-8080-exec-7] DEBUG o.s.security.web.FilterChainProxy - Secured GET /docs/swagger-config
+2025-09-25 13:02:45 [http-nio-8080-exec-10] DEBUG o.s.security.web.FilterChainProxy - Securing GET /swagger-ui/favicon-32x32.png
+2025-09-25 13:02:45 [http-nio-8080-exec-9] DEBUG o.s.security.web.FilterChainProxy - Securing GET /docs
+2025-09-25 13:02:45 [http-nio-8080-exec-10] DEBUG o.s.s.w.a.AnonymousAuthenticationFilter - Set SecurityContextHolder to anonymous SecurityContext
+2025-09-25 13:02:45 [http-nio-8080-exec-9] DEBUG o.s.s.w.a.AnonymousAuthenticationFilter - Set SecurityContextHolder to anonymous SecurityContext
+2025-09-25 13:02:45 [http-nio-8080-exec-9] DEBUG o.s.security.web.FilterChainProxy - Secured GET /docs
+2025-09-25 13:02:45 [http-nio-8080-exec-10] DEBUG o.s.security.web.FilterChainProxy - Secured GET /swagger-ui/favicon-32x32.png
+2025-09-25 13:02:47 [http-nio-8080-exec-9] INFO  o.s.api.AbstractOpenApiResource - Init duration for springdoc-openapi is: 1209 ms
+2025-09-25 13:02:55 [http-nio-8080-exec-6] DEBUG o.s.security.web.FilterChainProxy - Securing GET /swagger-ui/favicon-32x32.png
+2025-09-25 13:02:55 [http-nio-8080-exec-6] DEBUG o.s.s.w.a.AnonymousAuthenticationFilter - Set SecurityContextHolder to anonymous SecurityContext
+2025-09-25 13:02:55 [http-nio-8080-exec-6] DEBUG o.s.security.web.FilterChainProxy - Secured GET /swagger-ui/favicon-32x32.png
