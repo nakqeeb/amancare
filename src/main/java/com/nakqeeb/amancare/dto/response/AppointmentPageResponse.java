@@ -8,7 +8,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public class AppointmentPageResponse {
 
     @Schema(description = "قائمة المواعيد")
-    private java.util.List<AppointmentSummaryResponse> appointments;
+    private java.util.List<AppointmentResponse> appointments;
 
     @Schema(description = "إجمالي عدد المواعيد")
     private long totalElements;
@@ -31,7 +31,7 @@ public class AppointmentPageResponse {
     // Constructors
     public AppointmentPageResponse() {}
 
-    public AppointmentPageResponse(java.util.List<AppointmentSummaryResponse> appointments,
+    public AppointmentPageResponse(java.util.List<AppointmentResponse> appointments,
                                    long totalElements, int totalPages, int currentPage,
                                    int pageSize, boolean hasPrevious, boolean hasNext) {
         this.appointments = appointments;
@@ -44,8 +44,8 @@ public class AppointmentPageResponse {
     }
 
     // Getters and Setters
-    public java.util.List<AppointmentSummaryResponse> getAppointments() { return appointments; }
-    public void setAppointments(java.util.List<AppointmentSummaryResponse> appointments) { this.appointments = appointments; }
+    public java.util.List<AppointmentResponse> getAppointments() { return appointments; }
+    public void setAppointments(java.util.List<AppointmentResponse> appointments) { this.appointments = appointments; }
 
     public long getTotalElements() { return totalElements; }
     public void setTotalElements(long totalElements) { this.totalElements = totalElements; }

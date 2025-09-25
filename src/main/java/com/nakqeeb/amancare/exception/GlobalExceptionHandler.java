@@ -415,4 +415,24 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
     }
+
+    /**
+     * معالجة استثناءات عدم وجود صلاحية
+     * Handle unauthorized exceptions
+     */
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ApiResponse<Map<String, Object>>> handleUnauthorizedException(
+            UnauthorizedException ex, WebRequest request) {
+
+        Map<String, Object> errorData = new HashMap<>();
+        errorData.put("timestamp", LocalDateTime.now());
+        errorData.put("path", request.getDescription(false).replace("uri=", ""));
+
+        ApiResponse<Map<String, Object>> response = new ApiResponse<>();
+        response.setSuccess(false);
+        response.setMessage(ex.getMessage());
+        response.setData(errorData);
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
 }

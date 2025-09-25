@@ -5,9 +5,11 @@
 package com.nakqeeb.amancare.controller;
 
 import com.nakqeeb.amancare.annotation.SystemAdminContext;
+import com.nakqeeb.amancare.dto.request.UpdateUserRequest;
 import com.nakqeeb.amancare.dto.response.ApiResponse;
 import com.nakqeeb.amancare.dto.response.ClinicUserResponse;
 import com.nakqeeb.amancare.dto.response.ClinicUserStats;
+import com.nakqeeb.amancare.dto.response.UserResponse;
 import com.nakqeeb.amancare.entity.Clinic;
 import com.nakqeeb.amancare.entity.User;
 import com.nakqeeb.amancare.entity.UserRole;
@@ -16,8 +18,13 @@ import com.nakqeeb.amancare.service.ClinicContextService;
 import com.nakqeeb.amancare.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -300,6 +307,148 @@ public class UserController {
         }
     }
 
+    /**
+     * تحديث بيانات المستخدم
+     * Update User API
+     */
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
+    @Operation(
+            summary = "تحديث بيانات المستخدم",
+            description = """
+            تحديث بيانات المستخدم في النظام مع مراعاة الصلاحيات:
+            
+            **قواعد الصلاحيات:**
+            - **مدير النظام (SYSTEM_ADMIN)**: يمكنه تحديث أي مستخدم من أي دور
+            - **مدير العيادة (ADMIN)**: يمكنه تحديث نفسه أو مستخدمين من عيادته فقط
+            - **الأدوار الأخرى**: يمكنهم تحديث بياناتهم الشخصية فقط
+            
+            **البيانات القابلة للتحديث:**
+            - البيانات الشخصية (الاسم، البريد الإلكتروني، الهاتف)
+            - الدور والتخصص
+            - حالة التفعيل
+            - كلمة المرور (اختيارية)
+            """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "تم تحديث المستخدم بنجاح",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ApiResponse.class)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "بيانات غير صحيحة أو البريد الإلكتروني مستخدم من قبل",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ApiResponse.class)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "غير مسموح - يجب تسجيل الدخول",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ApiResponse.class)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "ممنوع - ليس لديك صلاحية لتحديث هذا المستخدم",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ApiResponse.class)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "المستخدم غير موجود",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ApiResponse.class)
+                    )
+            )
+    })
+    public ResponseEntity<ApiResponse<UserResponse>> updateUser(
+            @Parameter(description = "معرف المستخدم", required = true, example = "1")
+            @PathVariable Long id,
+
+            @Parameter(description = "بيانات تحديث المستخدم", required = true)
+            @Valid @RequestBody UpdateUserRequest request,
+
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+
+        logger.info("طلب تحديث المستخدم - المعرف: {}, المستخدم الحالي: {}", id, currentUser.getUsername());
+
+            UserResponse updatedUser = userService.updateUser(id, request, currentUser);
+
+            ApiResponse<UserResponse> response = new ApiResponse<>();
+            response.setSuccess(true);
+            response.setMessage("تم تحديث بيانات المستخدم بنجاح");
+            response.setData(updatedUser);
+
+            logger.info("تم تحديث المستخدم بنجاح - المعرف: {}", id);
+            return ResponseEntity.ok(response);
+    }
+
+    /**
+     * تحديث كلمة المرور فقط
+     * Update User Password Only
+     */
+    @PatchMapping("/{id}/password")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
+    @Operation(
+            summary = "تحديث كلمة مرور المستخدم",
+            description = """
+            تحديث كلمة مرور المستخدم فقط.
+            
+            **قواعد الصلاحيات:**
+            - **مدير النظام**: يمكنه تحديث كلمة مرور أي مستخدم
+            - **مدير العيادة**: يمكنه تحديث كلمة مرور المستخدمين في عيادته
+            - **المستخدمون الآخرون**: يمكنهم تحديث كلمة مرورهم فقط
+            """
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "تم تحديث كلمة المرور بنجاح"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "ممنوع - ليس لديك صلاحية"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "المستخدم غير موجود"
+            )
+    })
+    public ResponseEntity<ApiResponse<String>> updateUserPassword(
+            @Parameter(description = "معرف المستخدم", required = true)
+            @PathVariable Long id,
+
+            @Parameter(description = "كلمة المرور الجديدة", required = true)
+            @RequestBody @Valid PasswordUpdateRequest passwordRequest,
+
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+
+        logger.info("طلب تحديث كلمة المرور للمستخدم: {}", id);
+
+        userService.updateUserPassword(id, passwordRequest.getNewPassword(), currentUser);
+
+        ApiResponse<String> response = new ApiResponse<>();
+        response.setSuccess(true);
+        response.setMessage("تم تحديث كلمة المرور بنجاح");
+        response.setData("تم تحديث كلمة المرور");
+
+        return ResponseEntity.ok(response);
+    }
+
+
     // =================== Response DTOs (Keep these for backward compatibility) ===================
 
     /**
@@ -379,6 +528,27 @@ public class UserController {
             }
 
             return response;
+        }
+    }
+
+    /**
+     * طلب تحديث كلمة المرور
+     */
+    public static class PasswordUpdateRequest {
+
+        @Schema(description = "كلمة المرور الجديدة", required = true, minLength = 6)
+        @Size(min = 6, message = "كلمة المرور يجب أن تكون على الأقل 6 أحرف")
+        @NotBlank(message = "كلمة المرور الجديدة مطلوبة")
+        private String newPassword;
+
+        public PasswordUpdateRequest() {}
+
+        public String getNewPassword() {
+            return newPassword;
+        }
+
+        public void setNewPassword(String newPassword) {
+            this.newPassword = newPassword;
         }
     }
 }

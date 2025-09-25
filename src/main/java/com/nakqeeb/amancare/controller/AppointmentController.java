@@ -177,7 +177,7 @@ public class AppointmentController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "غير مصرح - يجب تسجيل الدخول"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ممنوع - صلاحيات غير كافية")
     })
-    public ResponseEntity<ApiResponse<List<AppointmentSummaryResponse>>> getTodayAppointments(
+    public ResponseEntity<ApiResponse<List<AppointmentResponse>>> getTodayAppointments(
             @AuthenticationPrincipal UserPrincipal currentUser,
             @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
             @RequestParam(required = false) Long clinicId) {
@@ -193,7 +193,7 @@ public class AppointmentController {
                 // Other users can only see their clinic
                 effectiveClinicId = currentUser.getClinicId();
             }
-            List<AppointmentSummaryResponse> todayAppointments = appointmentService.getTodayAppointments(
+            List<AppointmentResponse> todayAppointments = appointmentService.getTodayAppointments(
                     effectiveClinicId);
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم الحصول على مواعيد اليوم بنجاح", todayAppointments)
@@ -219,7 +219,7 @@ public class AppointmentController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "غير مصرح - يجب تسجيل الدخول"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ممنوع - صلاحيات غير كافية")
     })
-    public ResponseEntity<ApiResponse<List<AppointmentSummaryResponse>>> getDoctorAppointments(
+    public ResponseEntity<ApiResponse<List<AppointmentResponse>>> getDoctorAppointments(
             @AuthenticationPrincipal UserPrincipal currentUser,
             @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
             @RequestParam(required = false) Long clinicId,
@@ -239,7 +239,7 @@ public class AppointmentController {
                 // Other users can only see their clinic
                 effectiveClinicId = currentUser.getClinicId();
             }
-            List<AppointmentSummaryResponse> doctorAppointments = appointmentService.getDoctorAppointments(
+            List<AppointmentResponse> doctorAppointments = appointmentService.getDoctorAppointments(
                     effectiveClinicId, doctorId, date);
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم الحصول على مواعيد الطبيب بنجاح", doctorAppointments)
@@ -450,7 +450,7 @@ public class AppointmentController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "غير مصرح - يجب تسجيل الدخول"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ممنوع - صلاحيات غير كافية")
     })
-    public ResponseEntity<ApiResponse<List<AppointmentSummaryResponse>>> getUpcomingAppointmentsByPatient(
+    public ResponseEntity<ApiResponse<List<AppointmentResponse>>> getUpcomingAppointmentsByPatient(
             @AuthenticationPrincipal UserPrincipal currentUser,
             @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
             @RequestParam(required = false) Long clinicId,
@@ -468,7 +468,7 @@ public class AppointmentController {
                 // Other users can only see their clinic
                 effectiveClinicId = currentUser.getClinicId();
             }
-            List<AppointmentSummaryResponse> upcomingAppointments = appointmentService.getUpcomingAppointmentsByPatient(
+            List<AppointmentResponse> upcomingAppointments = appointmentService.getUpcomingAppointmentsByPatient(
                     effectiveClinicId, patientId);
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم الحصول على المواعيد القادمة بنجاح", upcomingAppointments)
@@ -493,7 +493,7 @@ public class AppointmentController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "غير مصرح - يجب تسجيل الدخول"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ممنوع - مدير العيادة أو الطبيب فقط")
     })
-    public ResponseEntity<ApiResponse<List<AppointmentSummaryResponse>>> getOverdueAppointments(
+    public ResponseEntity<ApiResponse<List<AppointmentResponse>>> getOverdueAppointments(
             @AuthenticationPrincipal UserPrincipal currentUser,
             @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
             @RequestParam(required = false) Long clinicId) {
@@ -509,7 +509,7 @@ public class AppointmentController {
                 // Other users can only see their clinic
                 effectiveClinicId = currentUser.getClinicId();
             }
-            List<AppointmentSummaryResponse> overdueAppointments = appointmentService.getOverdueAppointments(
+            List<AppointmentResponse> overdueAppointments = appointmentService.getOverdueAppointments(
                     effectiveClinicId);
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم الحصول على المواعيد المتأخرة بنجاح", overdueAppointments)

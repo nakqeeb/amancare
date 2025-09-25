@@ -4,23 +4,29 @@
 
 package com.nakqeeb.amancare.service;
 
+import com.nakqeeb.amancare.dto.request.UpdateUserRequest;
 import com.nakqeeb.amancare.dto.response.ClinicUserResponse;
 import com.nakqeeb.amancare.dto.response.ClinicUserStats;
+import com.nakqeeb.amancare.dto.response.UserResponse;
 import com.nakqeeb.amancare.entity.Clinic;
 import com.nakqeeb.amancare.entity.Patient;
 import com.nakqeeb.amancare.entity.User;
 import com.nakqeeb.amancare.entity.UserRole;
+import com.nakqeeb.amancare.exception.BadRequestException;
 import com.nakqeeb.amancare.exception.ForbiddenOperationException;
 import com.nakqeeb.amancare.exception.ResourceNotFoundException;
+import com.nakqeeb.amancare.exception.UnauthorizedException;
 import com.nakqeeb.amancare.repository.ClinicRepository;
 import com.nakqeeb.amancare.repository.UserRepository;
 import com.nakqeeb.amancare.security.UserPrincipal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -43,6 +49,9 @@ public class UserService {
 
     @Autowired
     private ClinicContextService clinicContextService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     /**
      * الحصول على جميع الأطباء النشطين في العيادة مع تحميل بيانات العيادة
@@ -229,6 +238,167 @@ public class UserService {
                 userId, isActive ? "active" : "inactive", currentUser.getUsername());
 
         return ClinicUserResponse.fromEntity(user);
+    }
+
+    /**
+     * تحديث بيانات المستخدم مع التحكم في الصلاحيات
+     * Update user with role-based access control
+     *
+     * @param userId المعرف الخاص بالمستخدم
+     * @param request بيانات التحديث
+     * @param currentUserPrincipal المستخدم الحالي
+     * @return UserResponse بيانات المستخدم المحدثة
+     */
+    @Transactional
+    public UserResponse updateUser(Long userId, UpdateUserRequest request, UserPrincipal currentUserPrincipal) {
+        logger.info("تحديث بيانات المستخدم - المعرف: {}, المستخدم الحالي: {}", userId, currentUserPrincipal.getUsername());
+
+        // التحقق من وجود المستخدم
+        User userToUpdate = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("المستخدم غير موجود بالمعرف: " + userId));
+
+        // التحقق من الصلاحيات
+        validateUpdatePermissions(userToUpdate, currentUserPrincipal);
+
+        // التحقق من تفرد البريد الإلكتروني إذا تم تغييره
+        if (request.getEmail() != null && !request.getEmail().equals(userToUpdate.getEmail())) {
+            if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+                throw new BadRequestException("البريد الإلكتروني مستخدم من قبل مستخدم آخر");
+            }
+        }
+
+        // تطبيق التحديثات
+        applyUserUpdates(userToUpdate, request);
+
+        // حفظ التغييرات
+        User updatedUser = userRepository.save(userToUpdate);
+
+        logger.info("تم تحديث المستخدم بنجاح - المعرف: {}", userId);
+
+        return UserResponse.fromUser(updatedUser);
+    }
+
+    /**
+     * التحقق من صلاحيات التحديث حسب القواعد المحددة
+     * Validate update permissions based on role rules
+     *
+     * SYSTEM_ADMIN → can update any user of any role
+     * ADMIN (clinic owner) → can update himself or users of his own clinic only
+     */
+    private void validateUpdatePermissions(User userToUpdate, UserPrincipal currentUser) {
+        UserRole currentUserRole = UserRole.valueOf(currentUser.getRole());
+
+        switch (currentUserRole) {
+            case SYSTEM_ADMIN:
+                // SYSTEM_ADMIN can update any user - no restrictions
+                logger.debug("مدير النظام يقوم بتحديث المستخدم: {}", userToUpdate.getUsername());
+                break;
+
+            case ADMIN:
+                // ADMIN can update himself or users from his clinic only
+                Long currentUserClinicId = currentUser.getClinicId();
+
+                // Check if updating himself
+                if (currentUser.getId().equals(userToUpdate.getId())) {
+                    logger.debug("مدير العيادة يقوم بتحديث بياناته الشخصية");
+                    break;
+                }
+
+                // Check if the user belongs to his clinic
+                if (!userToUpdate.getClinic().getId().equals(currentUserClinicId)) {
+                    throw new UnauthorizedException("ليس لديك صلاحية لتحديث مستخدمين من عيادات أخرى");
+                }
+
+                logger.debug("مدير العيادة {} يقوم بتحديث مستخدم من عيادته: {}",
+                        currentUser.getUsername(), userToUpdate.getUsername());
+                break;
+
+            default:
+                // Other roles (DOCTOR, NURSE, RECEPTIONIST) cannot update other users
+                if (!currentUser.getId().equals(userToUpdate.getId())) {
+                    throw new UnauthorizedException("ليس لديك صلاحية لتحديث بيانات مستخدمين آخرين");
+                }
+                logger.debug("المستخدم {} يقوم بتحديث بياناته الشخصية", currentUser.getUsername());
+                break;
+        }
+    }
+
+    /**
+     * تطبيق التحديثات على كيان المستخدم
+     * Apply updates to the user entity
+     */
+    private void applyUserUpdates(User userToUpdate, UpdateUserRequest request) {
+        // تحديث البيانات الأساسية
+        if (request.getEmail() != null) {
+            userToUpdate.setEmail(request.getEmail());
+        }
+
+        if (request.getFirstName() != null) {
+            userToUpdate.setFirstName(request.getFirstName());
+        }
+
+        if (request.getLastName() != null) {
+            userToUpdate.setLastName(request.getLastName());
+        }
+
+        if (request.getPhone() != null) {
+            userToUpdate.setPhone(request.getPhone());
+        }
+
+        // تحديث الدور (فقط SYSTEM_ADMIN يمكنه تغيير الأدوار)
+        if (request.getRole() != null) {
+            // Additional validation could be added here for role changes
+            userToUpdate.setRole(request.getRole());
+        }
+
+        // تحديث التخصص
+        if (request.getSpecialization() != null) {
+            userToUpdate.setSpecialization(request.getSpecialization());
+        }
+
+//        // تحديث رقم الترخيص
+//        if (request.getLicenseNumber() != null) {
+//            userToUpdate.setLicenseNumber(request.getLicenseNumber());
+//        }
+
+        // تحديث حالة التفعيل
+        if (request.getIsActive() != null) {
+            userToUpdate.setIsActive(request.getIsActive());
+        }
+
+        // تحديث كلمة المرور إذا تم توفيرها
+        if (request.hasPasswordChange()) {
+            String encodedPassword = passwordEncoder.encode(request.getNewPassword());
+            userToUpdate.setPasswordHash(encodedPassword);
+            logger.debug("تم تحديث كلمة المرور للمستخدم: {}", userToUpdate.getUsername());
+        }
+
+        // تحديث الطابع الزمني
+        userToUpdate.setUpdatedAt(LocalDateTime.now());
+    }
+
+    /**
+     * تحديث كلمة المرور فقط (طريقة منفصلة)
+     * Update password only (separate method)
+     */
+    @Transactional
+    public void updateUserPassword(Long userId, String newPassword, UserPrincipal currentUser) {
+        logger.info("تحديث كلمة المرور للمستخدم: {}", userId);
+
+        User userToUpdate = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("المستخدم غير موجود بالمعرف: " + userId));
+
+        // التحقق من الصلاحيات
+        validateUpdatePermissions(userToUpdate, currentUser);
+
+        // تحديث كلمة المرور
+        String encodedPassword = passwordEncoder.encode(newPassword);
+        userToUpdate.setPasswordHash(encodedPassword);
+        userToUpdate.setUpdatedAt(LocalDateTime.now());
+
+        userRepository.save(userToUpdate);
+
+        logger.info("تم تحديث كلمة المرور بنجاح للمستخدم: {}", userId);
     }
 
     // =================== HELPER METHODS ===================

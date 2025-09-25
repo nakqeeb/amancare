@@ -178,9 +178,9 @@ public class AppointmentService {
             appointmentsPage = appointmentRepository.findByClinic(clinic, pageable);
         }
 
-        List<AppointmentSummaryResponse> appointmentSummaries = appointmentsPage.getContent()
+        List<AppointmentResponse> appointmentSummaries = appointmentsPage.getContent()
                 .stream()
-                .map(AppointmentSummaryResponse::fromAppointment)
+                .map(AppointmentResponse::fromAppointment)
                 .collect(Collectors.toList());
 
         return new AppointmentPageResponse(
@@ -198,14 +198,14 @@ public class AppointmentService {
      * مواعيد اليوم
      */
     @Transactional(readOnly = true)
-    public List<AppointmentSummaryResponse> getTodayAppointments(Long clinicId) {
+    public List<AppointmentResponse> getTodayAppointments(Long clinicId) {
         Clinic clinic = clinicRepository.findById(clinicId)
                 .orElseThrow(() -> new ResourceNotFoundException("العيادة غير موجودة"));
 
         List<Appointment> todayAppointments = appointmentRepository.findTodayAppointments(clinic);
 
         return todayAppointments.stream()
-                .map(AppointmentSummaryResponse::fromAppointment)
+                .map(AppointmentResponse::fromAppointment)
                 .collect(Collectors.toList());
     }
 
@@ -213,7 +213,7 @@ public class AppointmentService {
      * مواعيد طبيب معين
      */
     @Transactional(readOnly = true)
-    public List<AppointmentSummaryResponse> getDoctorAppointments(Long clinicId, Long doctorId, LocalDate date) {
+    public List<AppointmentResponse> getDoctorAppointments(Long clinicId, Long doctorId, LocalDate date) {
         User doctor = userRepository.findById(doctorId)
                 .orElseThrow(() -> new ResourceNotFoundException("الطبيب غير موجود"));
 
@@ -229,7 +229,7 @@ public class AppointmentService {
         }
 
         return doctorAppointments.stream()
-                .map(AppointmentSummaryResponse::fromAppointment)
+                .map(AppointmentResponse::fromAppointment)
                 .collect(Collectors.toList());
     }
 
@@ -321,7 +321,7 @@ public class AppointmentService {
      * المواعيد القادمة للمريض
      */
     @Transactional(readOnly = true)
-    public List<AppointmentSummaryResponse> getUpcomingAppointmentsByPatient(Long clinicId, Long patientId) {
+    public List<AppointmentResponse> getUpcomingAppointmentsByPatient(Long clinicId, Long patientId) {
         Patient patient = patientRepository.findById(patientId)
                 .orElseThrow(() -> new ResourceNotFoundException("المريض غير موجود"));
 
@@ -332,7 +332,7 @@ public class AppointmentService {
         List<Appointment> upcomingAppointments = appointmentRepository.findUpcomingAppointmentsByPatient(patient);
 
         return upcomingAppointments.stream()
-                .map(AppointmentSummaryResponse::fromAppointment)
+                .map(AppointmentResponse::fromAppointment)
                 .collect(Collectors.toList());
     }
 
@@ -340,14 +340,14 @@ public class AppointmentService {
      * المواعيد المتأخرة
      */
     @Transactional(readOnly = true)
-    public List<AppointmentSummaryResponse> getOverdueAppointments(Long clinicId) {
+    public List<AppointmentResponse> getOverdueAppointments(Long clinicId) {
         Clinic clinic = clinicRepository.findById(clinicId)
                 .orElseThrow(() -> new ResourceNotFoundException("العيادة غير موجودة"));
 
         List<Appointment> overdueAppointments = appointmentRepository.findOverdueAppointments(clinic);
 
         return overdueAppointments.stream()
-                .map(AppointmentSummaryResponse::fromAppointment)
+                .map(AppointmentResponse::fromAppointment)
                 .collect(Collectors.toList());
     }
 
