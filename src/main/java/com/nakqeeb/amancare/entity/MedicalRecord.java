@@ -104,12 +104,12 @@ public class MedicalRecord {
     @Size(max = 1000, message = "التاريخ الاجتماعي يجب أن يكون أقل من 1000 حرف")
     private String socialHistory;
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "medical_record_allergies", joinColumns = @JoinColumn(name = "medical_record_id"))
     @Column(name = "allergy", length = 255)
     private List<String> allergies = new ArrayList<>();
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "medical_record_medications", joinColumns = @JoinColumn(name = "medical_record_id"))
     @Column(name = "medication", length = 255)
     private List<String> currentMedications = new ArrayList<>();
