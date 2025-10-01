@@ -831,6 +831,13 @@ public class MedicalRecordService {
             existingRecord.setChiefComplaint(request.getChiefComplaint());
         }
 
+        if (request.getPrescriptions() != null) {
+            request.getPrescriptions().forEach(prescriptionDto -> {
+                Prescription prescription = mapPrescription(prescriptionDto);
+                existingRecord.addPrescription(prescription);
+            });
+        }
+
         if (request.getPresentIllness() != null) {
             existingRecord.setPresentIllness(request.getPresentIllness());
         }
