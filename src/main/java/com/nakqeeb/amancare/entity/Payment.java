@@ -48,7 +48,7 @@ public class Payment extends BaseEntity {
 
     @NotNull(message = "طريقة الدفع مطلوبة")
     @Enumerated(EnumType.STRING)
-    @Column(name = "payment_method", nullable = false)
+    @Column(name = "payment_method", nullable = false, length = 20)
     private PaymentMethod paymentMethod;
 
     @Column(name = "reference_number", length = 100)

@@ -86,7 +86,7 @@ public class Invoice extends BaseEntity {
     private InvoiceStatus status = InvoiceStatus.DRAFT;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "payment_method")
+    @Column(name = "payment_method", length = 20)
     private PaymentMethod paymentMethod = PaymentMethod.CASH;
 
     @Column(name = "notes", columnDefinition = "TEXT")
