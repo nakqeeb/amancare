@@ -9,13 +9,16 @@ import com.nakqeeb.amancare.dto.request.ClinicRegistrationRequest;
 import com.nakqeeb.amancare.dto.request.UserCreationRequest;
 import com.nakqeeb.amancare.dto.request.ChangePasswordRequest;
 import com.nakqeeb.amancare.dto.request.RefreshTokenRequest;
+import com.nakqeeb.amancare.dto.response.ClinicResponse;
 import com.nakqeeb.amancare.dto.response.JwtAuthenticationResponse;
 import com.nakqeeb.amancare.dto.response.ApiResponse;
 import com.nakqeeb.amancare.dto.response.UserResponse;
+import com.nakqeeb.amancare.entity.Clinic;
 import com.nakqeeb.amancare.entity.User;
 import com.nakqeeb.amancare.exception.ForbiddenOperationException;
 import com.nakqeeb.amancare.security.UserPrincipal;
 import com.nakqeeb.amancare.service.AuthService;
+import com.nakqeeb.amancare.service.ClinicService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -40,6 +43,9 @@ public class AuthController {
 
     @Autowired
     private AuthService authService;
+
+    @Autowired
+    private ClinicService clinicService;
 
     /**
      * تسجيل الدخول
@@ -220,7 +226,12 @@ public class AuthController {
     @Operation(summary = "معلومات المستخدم الحالي", description = "الحصول على معلومات المستخدم المُسجل حالياً")
     public ResponseEntity<ApiResponse<UserResponse>> getCurrentUser(@AuthenticationPrincipal UserPrincipal currentUser) {
         try {
+            ClinicResponse clinic = clinicService.getClinicById(currentUser.getClinicId(), currentUser);
+
             UserResponse userResponse = UserResponse.fromUserPrincipal(currentUser);
+            if (clinic != null) {
+                userResponse.setClinicName(clinic.getName());
+            }
 
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم الحصول على معلومات المستخدم بنجاح", userResponse)
