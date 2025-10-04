@@ -464,7 +464,7 @@ public class InvoiceController {
             description = "الحصول على إحصائيات شاملة للفواتير والمدفوعات"
     )
     public ResponseEntity<ApiResponse<InvoiceStatisticsResponse>> getInvoiceStatistics(
-            @Parameter(description = "معرف العيادة")
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
             @RequestParam(required = false) Long clinicId,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         try {

@@ -589,7 +589,7 @@ public class PatientController {
      * إحصائيات المرضى
      */
     @GetMapping("/statistics")
-    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR')")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN')")
     @Operation(
             summary = "📊 إحصائيات المرضى",
             description = "الحصول على إحصائيات المرضى في العيادة"
