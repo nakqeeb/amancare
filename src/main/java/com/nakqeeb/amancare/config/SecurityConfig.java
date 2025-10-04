@@ -193,6 +193,7 @@ public class SecurityConfig {
                         .requestMatchers("/admin/context/**").hasRole("SYSTEM_ADMIN")
                         .requestMatchers("/admin/actions/**").hasRole("SYSTEM_ADMIN")
                         .requestMatchers("/admin/audit/**").hasRole("SYSTEM_ADMIN")
+                        .requestMatchers("/admin/activities/**").hasAnyRole("ADMIN", "SYSTEM_ADMIN")
 
                         // ===================================================================
                         // REPORTS & ANALYTICS - التقارير
