@@ -65,19 +65,32 @@ public class ActivityLogController {
     )
     public ResponseEntity<ApiResponse<List<ActivityLogResponse>>> getRecentActivities(
             @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId,
             @Parameter(description = "عدد الأنشطة (افتراضي 50)")
             @RequestParam(defaultValue = "50") int limit
     ) {
         try {
             // Get clinic ID based on user role
-            Long clinicId = getEffectiveClinicId(currentUser);
+            // Long clinicId = getEffectiveClinicId(currentUser);
+            // For READ operations, SYSTEM_ADMIN doesn't need context
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                // SYSTEM_ADMIN can specify clinic or get all
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN reading recent activities for clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                // Other users can only see their clinic
+                effectiveClinicId = currentUser.getClinicId();
+            }
 
-            if (clinicId == null) {
+            if (effectiveClinicId == null) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(new ApiResponse<>(false, "لم يتم تحديد سياق العيادة", null));
             }
 
-            List<ActivityLogResponse> activities = activityLogService.getRecentActivities(clinicId, limit);
+            List<ActivityLogResponse> activities = activityLogService.getRecentActivities(effectiveClinicId, limit);
 
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم جلب الأنشطة بنجاح", activities)
@@ -112,6 +125,8 @@ public class ActivityLogController {
     )
     public ResponseEntity<ApiResponse<Page<ActivityLogResponse>>> searchActivities(
             @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId,
             @Parameter(description = "معرف المستخدم")
             @RequestParam(required = false) Long userId,
             @Parameter(description = "نوع الإجراء")
@@ -137,9 +152,19 @@ public class ActivityLogController {
     ) {
         try {
             // Get clinic ID based on user role
-            Long clinicId = getEffectiveClinicId(currentUser);
+            // Long clinicId = getEffectiveClinicId(currentUser);
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                // SYSTEM_ADMIN can specify clinic or get all
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN searching activities with filters for clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                // Other users can only see their clinic
+                effectiveClinicId = currentUser.getClinicId();
+            }
 
-            if (clinicId == null) {
+            if (effectiveClinicId == null) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(new ApiResponse<>(false, "لم يتم تحديد سياق العيادة", null));
             }
@@ -152,7 +177,7 @@ public class ActivityLogController {
 
             // Search activities
             Page<ActivityLogResponse> activities = activityLogService.searchActivities(
-                    clinicId, userId, actionType, entityType,
+                    effectiveClinicId, userId, actionType, entityType,
                     startDate, endDate, searchTerm, pageable
             );
 
@@ -182,6 +207,8 @@ public class ActivityLogController {
     )
     public ResponseEntity<ApiResponse<List<ActivityLogResponse>>> getEntityActivityTrail(
             @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId,
             @Parameter(description = "نوع الكيان")
             @PathVariable String entityType,
             @Parameter(description = "معرف الكيان")
@@ -189,15 +216,25 @@ public class ActivityLogController {
     ) {
         try {
             // Get clinic ID based on user role
-            Long clinicId = getEffectiveClinicId(currentUser);
+            // Long clinicId = getEffectiveClinicId(currentUser);
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                // SYSTEM_ADMIN can specify clinic or get all
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN reading activity trail for a specific entity for clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                // Other users can only see their clinic
+                effectiveClinicId = currentUser.getClinicId();
+            }
 
-            if (clinicId == null) {
+            if (effectiveClinicId == null) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(new ApiResponse<>(false, "لم يتم تحديد سياق العيادة", null));
             }
 
             List<ActivityLogResponse> activities = activityLogService.getEntityActivityTrail(
-                    clinicId, entityType, entityId
+                    effectiveClinicId, entityType, entityId
             );
 
             return ResponseEntity.ok(
@@ -226,6 +263,8 @@ public class ActivityLogController {
     )
     public ResponseEntity<ApiResponse<Page<ActivityLogResponse>>> getActivitiesByUser(
             @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId,
             @Parameter(description = "معرف المستخدم")
             @PathVariable Long userId,
             @Parameter(description = "رقم الصفحة")
@@ -235,16 +274,26 @@ public class ActivityLogController {
     ) {
         try {
             // Get clinic ID based on user role
-            Long clinicId = getEffectiveClinicId(currentUser);
+            //Long clinicId = getEffectiveClinicId(currentUser);
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                // SYSTEM_ADMIN can specify clinic or get all
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN reading activities by user for clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                // Other users can only see their clinic
+                effectiveClinicId = currentUser.getClinicId();
+            }
 
-            if (clinicId == null) {
+            if (effectiveClinicId == null) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(new ApiResponse<>(false, "لم يتم تحديد سياق العيادة", null));
             }
 
             Pageable pageable = PageRequest.of(page, size);
             Page<ActivityLogResponse> activities = activityLogService.getActivitiesByUser(
-                    clinicId, userId, pageable
+                    effectiveClinicId, userId, pageable
             );
 
             return ResponseEntity.ok(
@@ -273,15 +322,27 @@ public class ActivityLogController {
     )
     public ResponseEntity<ApiResponse<ActivityStatisticsResponse>> getStatistics(
             @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId,
             @Parameter(description = "منذ (افتراضي: آخر 30 يوم)")
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime since
     ) {
         try {
             // Get clinic ID based on user role
-            Long clinicId = getEffectiveClinicId(currentUser);
+            // Long clinicId = getEffectiveClinicId(currentUser);
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                // SYSTEM_ADMIN can specify clinic or get all
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN reading activity statistics for clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                // Other users can only see their clinic
+                effectiveClinicId = currentUser.getClinicId();
+            }
 
-            if (clinicId == null) {
+            if (effectiveClinicId == null) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(new ApiResponse<>(false, "لم يتم تحديد سياق العيادة", null));
             }
@@ -291,7 +352,7 @@ public class ActivityLogController {
                 since = LocalDateTime.now().minusDays(30);
             }
 
-            ActivityStatisticsResponse stats = activityLogService.getActivityStatistics(clinicId, since);
+            ActivityStatisticsResponse stats = activityLogService.getActivityStatistics(effectiveClinicId, since);
 
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم جلب الإحصائيات بنجاح", stats)
@@ -311,7 +372,7 @@ public class ActivityLogController {
     /**
      * Get effective clinic ID based on user role
      */
-    private Long getEffectiveClinicId(UserPrincipal currentUser) {
+    /* private Long getEffectiveClinicId(UserPrincipal currentUser) {
         if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
             // SYSTEM_ADMIN must have clinic context set
             return clinicContextService.getEffectiveClinicId(currentUser);
@@ -319,5 +380,5 @@ public class ActivityLogController {
             // Regular ADMIN uses their own clinic
             return currentUser.getClinicId();
         }
-    }
+    }*/
 }
