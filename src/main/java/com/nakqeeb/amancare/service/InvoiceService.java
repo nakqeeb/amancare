@@ -262,6 +262,60 @@ public class InvoiceService {
     }
 
     /**
+     * Get invoices for a specific patient
+     * NEW METHOD - Dedicated for fetching patient invoices
+     *
+     * @param patientId The patient ID
+     * @param pageable Pagination parameters
+     * @param currentUser The current authenticated user
+     * @return Page of invoice responses for the patient
+     */
+    @Transactional(readOnly = true)
+    public Page<InvoiceResponse> getPatientInvoices(Long patientId, Pageable pageable, UserPrincipal currentUser) {
+        logger.info("Fetching invoices for patient {} by user: {}", patientId, currentUser.getId());
+
+        // Determine effective clinic ID
+        Long effectiveClinicId;
+        if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+            // SYSTEM_ADMIN can view any patient's invoices
+            effectiveClinicId = null; // Will be determined from patient's clinic
+        } else {
+            effectiveClinicId = currentUser.getClinicId();
+        }
+
+        // Fetch the patient
+        Patient patient = patientRepository.findById(patientId)
+                .orElseThrow(() -> new ResourceNotFoundException("المريض غير موجود"));
+
+        // Security check: Non-SYSTEM_ADMIN users can only view patients in their clinic
+        if (effectiveClinicId != null) {
+            if (!patient.getClinic().getId().equals(effectiveClinicId)) {
+                throw new ForbiddenOperationException("ليس لديك صلاحية لعرض فواتير هذا المريض");
+            }
+
+            // Use the more secure method that filters by both clinic and patient
+            Clinic clinic = clinicRepository.findById(effectiveClinicId)
+                    .orElseThrow(() -> new ResourceNotFoundException("العيادة غير موجودة"));
+
+            Page<Invoice> invoices = invoiceRepository.findByClinicAndPatientOrderByInvoiceDateDesc(
+                    clinic, patient, pageable);
+
+            logger.info("Found {} invoices for patient {} in clinic {}",
+                    invoices.getTotalElements(), patientId, clinic.getId());
+
+            return invoices.map(InvoiceResponse::fromEntity);
+        } else {
+            // SYSTEM_ADMIN - can view across clinics
+            Page<Invoice> invoices = invoiceRepository.findByPatientOrderByInvoiceDateDesc(patient, pageable);
+
+            logger.info("SYSTEM_ADMIN: Found {} invoices for patient {} across all clinics",
+                    invoices.getTotalElements(), patientId);
+
+            return invoices.map(InvoiceResponse::fromEntity);
+        }
+    }
+
+    /**
      * Update invoice
      */
     @Transactional

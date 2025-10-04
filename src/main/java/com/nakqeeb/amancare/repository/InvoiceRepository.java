@@ -37,6 +37,19 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     List<Invoice> findByPatientOrderByInvoiceDateDesc(Patient patient);
 
     /**
+     * البحث عن فواتير المريض مع ترقيم الصفحات
+     * Find invoices by patient with pagination
+     */
+    Page<Invoice> findByPatientOrderByInvoiceDateDesc(Patient patient, Pageable pageable);
+
+    /**
+     * البحث عن فواتير المريض في عيادة محددة مع ترقيم الصفحات (أكثر أماناً)
+     * Find invoices by clinic and patient with pagination (more secure)
+     */
+    Page<Invoice> findByClinicAndPatientOrderByInvoiceDateDesc(Clinic clinic, Patient patient, Pageable pageable);
+
+
+    /**
      * البحث عن فاتورة حسب رقم الفاتورة في العيادة
      */
     Optional<Invoice> findByClinicAndInvoiceNumber(Clinic clinic, String invoiceNumber);

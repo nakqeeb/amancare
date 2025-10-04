@@ -532,6 +532,7 @@ public class InvoiceController {
 
     /**
      * Get invoices by patient
+     * UPDATED to use the new dedicated service method
      */
     @GetMapping("/patient/{patientId}")
     @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTIONIST', 'NURSE')")
@@ -545,11 +546,9 @@ public class InvoiceController {
         try {
             logger.info("Fetching invoices for patient {} by user: {}", patientId, currentUser.getId());
 
-            InvoiceSearchCriteria criteria = new InvoiceSearchCriteria();
-            criteria.setPatientId(patientId);
-
+            // Use the new dedicated method instead of getAllInvoices
             Pageable pageable = PageRequest.of(0, 100, Sort.by(Sort.Direction.DESC, "invoiceDate"));
-            Page<InvoiceResponse> invoices = invoiceService.getAllInvoices(pageable, criteria, currentUser);
+            Page<InvoiceResponse> invoices = invoiceService.getPatientInvoices(patientId, pageable, currentUser);
 
             String message = String.format("تم جلب %d فاتورة للمريض", invoices.getTotalElements());
 
