@@ -28,9 +28,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -55,6 +57,9 @@ public class AppointmentService {
 
     @Autowired
     private ClinicContextService clinicContextService;
+
+    @Autowired
+    private DoctorScheduleRepository doctorScheduleRepository;
 
     /**
      * إنشاء موعد جديد
@@ -96,6 +101,14 @@ public class AppointmentService {
 
         // التحقق من صحة التاريخ والوقت
         validateAppointmentDateTime(request.getAppointmentDate(), request.getAppointmentTime());
+
+        // التحقق من توفر الطبيب حسب الجدول الزمني
+        validateDoctorScheduleAvailability(
+                doctor,
+                request.getAppointmentDate(),
+                request.getAppointmentTime(),
+                request.getDurationMinutes()
+        );
 
         // التحقق من عدم تعارض المواعيد
         checkForConflicts(doctor, request.getAppointmentDate(), request.getAppointmentTime(),
@@ -239,42 +252,68 @@ public class AppointmentService {
     public AppointmentResponse updateAppointment(Long clinicId, Long appointmentId, UpdateAppointmentRequest request) {
         Appointment appointment = findAppointmentByIdAndClinic(appointmentId, clinicId);
 
-        // التحقق من إمكانية التحديث
-        if (appointment.getStatus() == AppointmentStatus.COMPLETED) {
-            throw new BadRequestException("لا يمكن تعديل موعد مكتمل");
+        // لا يمكن تحديث موعد مكتمل أو ملغي
+        if (appointment.getStatus() == AppointmentStatus.COMPLETED ||
+                appointment.getStatus() == AppointmentStatus.CANCELLED) {
+            throw new BadRequestException("لا يمكن تحديث موعد مكتمل أو ملغي");
         }
 
-        // تحديث التاريخ والوقت إذا تم تغييرهما
-        if (request.getAppointmentDate() != null || request.getAppointmentTime() != null) {
-            LocalDate newDate = request.getAppointmentDate() != null ?
-                    request.getAppointmentDate() : appointment.getAppointmentDate();
-            LocalTime newTime = request.getAppointmentTime() != null ?
-                    request.getAppointmentTime() : appointment.getAppointmentTime();
-            Integer newDuration = request.getDurationMinutes() != null ?
-                    request.getDurationMinutes() : appointment.getDurationMinutes();
+        // تحديث التاريخ والوقت إذا تم توفيرهم
+        boolean dateTimeChanged = false;
+        LocalDate newDate = appointment.getAppointmentDate();
+        LocalTime newTime = appointment.getAppointmentTime();
+        Integer newDuration = appointment.getDurationMinutes();
 
+        if (request.getAppointmentDate() != null) {
+            newDate = request.getAppointmentDate();
+            dateTimeChanged = true;
+        }
+
+        if (request.getAppointmentTime() != null) {
+            newTime = request.getAppointmentTime();
+            dateTimeChanged = true;
+        }
+
+        if (request.getDurationMinutes() != null) {
+            newDuration = request.getDurationMinutes();
+            dateTimeChanged = true;
+        }
+
+        // التحقق من التاريخ والوقت الجديد إذا تم تغييرهم
+        if (dateTimeChanged) {
             validateAppointmentDateTime(newDate, newTime);
+
+            // NEW: التحقق من توفر الطبيب حسب الجدول الزمني
+            validateDoctorScheduleAvailability( // NEW:
+                    appointment.getDoctor(), // NEW:
+                    newDate, // NEW:
+                    newTime, // NEW:
+                    newDuration // NEW:
+            ); // NEW:
+
             checkForConflicts(appointment.getDoctor(), newDate, newTime, newDuration, appointmentId);
 
             appointment.setAppointmentDate(newDate);
             appointment.setAppointmentTime(newTime);
+            appointment.setDurationMinutes(newDuration);
         }
 
-        // تحديث باقي البيانات
-        if (request.getDurationMinutes() != null) {
-            appointment.setDurationMinutes(request.getDurationMinutes());
-        }
+        // تحديث الحقول الأخرى
         if (request.getAppointmentType() != null) {
             appointment.setAppointmentType(request.getAppointmentType());
         }
+
         if (request.getChiefComplaint() != null) {
             appointment.setChiefComplaint(request.getChiefComplaint());
         }
+
         if (request.getNotes() != null) {
             appointment.setNotes(request.getNotes());
         }
 
         Appointment updatedAppointment = appointmentRepository.save(appointment);
+        logger.info("Appointment updated successfully: {}", appointmentId);
+
         return AppointmentResponse.fromAppointment(updatedAppointment);
     }
 
@@ -408,6 +447,88 @@ public class AppointmentService {
             throw new BadRequestException("الموعد خارج ساعات العمل (8:00 ص - 6:00 م)");
         }
     }
+
+    /**
+     * NEW: التحقق من توفر الطبيب حسب الجدول الزمني
+     * يتحقق من:
+     * 1. وجود جدول للطبيب في يوم الموعد
+     * 2. أن الموعد يقع ضمن ساعات عمل الطبيب
+     * 3. أن الموعد لا يتعارض مع فترة الاستراحة
+     */
+    private void validateDoctorScheduleAvailability(User doctor, LocalDate appointmentDate, // NEW:
+                                                    LocalTime appointmentTime, Integer durationMinutes) { // NEW:
+        // NEW: الحصول على يوم الأسبوع من تاريخ الموعد
+        DayOfWeek dayOfWeek = appointmentDate.getDayOfWeek(); // NEW:
+
+        // NEW: البحث عن جدول الطبيب لهذا اليوم
+        Optional<DoctorSchedule> scheduleOpt = doctorScheduleRepository.findDoctorScheduleForDay( // NEW:
+                doctor, dayOfWeek, appointmentDate); // NEW:
+
+        // NEW: التحقق من وجود جدول عمل للطبيب في هذا اليوم
+        if (scheduleOpt.isEmpty()) { // NEW:
+            throw new BadRequestException( // NEW:
+                    String.format("الطبيب %s لا يعمل في يوم %s", // NEW:
+                            doctor.getFullName(), // NEW:
+                            getDayNameInArabic(dayOfWeek))); // NEW:
+        } // NEW:
+
+        DoctorSchedule schedule = scheduleOpt.get(); // NEW:
+
+        // NEW: التحقق من أن الموعد يبدأ ضمن ساعات العمل
+        if (appointmentTime.isBefore(schedule.getStartTime()) || // NEW:
+                appointmentTime.isAfter(schedule.getEndTime())) { // NEW:
+            throw new BadRequestException( // NEW:
+                    String.format("الموعد خارج ساعات عمل الطبيب. ساعات العمل: من %s إلى %s", // NEW:
+                            schedule.getStartTime(), schedule.getEndTime())); // NEW:
+        } // NEW:
+
+        // NEW: حساب وقت انتهاء الموعد
+        LocalTime appointmentEndTime = appointmentTime.plusMinutes(durationMinutes); // NEW:
+
+        // NEW: التحقق من أن الموعد ينتهي قبل انتهاء ساعات العمل
+        if (appointmentEndTime.isAfter(schedule.getEndTime())) { // NEW:
+            throw new BadRequestException( // NEW:
+                    String.format("الموعد ينتهي بعد نهاية ساعات عمل الطبيب (ينتهي العمل في %s)", // NEW:
+                            schedule.getEndTime())); // NEW:
+        } // NEW:
+
+        // NEW: التحقق من عدم التعارض مع فترة الاستراحة
+        if (schedule.getBreakStartTime() != null && schedule.getBreakEndTime() != null) { // NEW:
+            LocalTime breakStart = schedule.getBreakStartTime(); // NEW:
+            LocalTime breakEnd = schedule.getBreakEndTime(); // NEW:
+
+            // NEW: التحقق من أن الموعد لا يتداخل مع فترة الاستراحة
+            // الموعد يتداخل إذا:
+            // - بدأ قبل نهاية الاستراحة AND انتهى بعد بداية الاستراحة
+            boolean overlapsWithBreak = appointmentTime.isBefore(breakEnd) && // NEW:
+                    appointmentEndTime.isAfter(breakStart); // NEW:
+
+            if (overlapsWithBreak) { // NEW:
+                throw new BadRequestException( // NEW:
+                        String.format("الموعد يتعارض مع فترة استراحة الطبيب (من %s إلى %s)", // NEW:
+                                breakStart, breakEnd)); // NEW:
+            } // NEW:
+        } // NEW:
+
+        logger.info("Doctor schedule validation passed for doctor {} on {} at {}", // NEW:
+                doctor.getFullName(), appointmentDate, appointmentTime); // NEW:
+    } // NEW:
+
+    /**
+     * NEW: الحصول على اسم اليوم بالعربية
+     */
+    private String getDayNameInArabic(DayOfWeek dayOfWeek) { // NEW:
+        return switch (dayOfWeek) { // NEW:
+            case SUNDAY -> "الأحد"; // NEW:
+            case MONDAY -> "الاثنين"; // NEW:
+            case TUESDAY -> "الثلاثاء"; // NEW:
+            case WEDNESDAY -> "الأربعاء"; // NEW:
+            case THURSDAY -> "الخميس"; // NEW:
+            case FRIDAY -> "الجمعة"; // NEW:
+            case SATURDAY -> "السبت"; // NEW:
+        }; // NEW:
+    } // NEW:
+
 
     /**
      * التحقق من تعارض المواعيد
