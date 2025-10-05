@@ -505,30 +505,30 @@ src/main/resources/templates/pdf/invoice-template.html
     <table class="items-table">
         <thead>
         <tr>
-            <th style="width: 5%;">#</th>
-            <th style="width: 30%;">اسم الخدمة</th>
-            <th style="width: 15%;">الفئة</th>
-            <th style="width: 10%;">الكمية</th>
-            <th style="width: 12%;">السعر</th>
-            <th style="width: 12%;">الخصم</th>
             <th style="width: 16%;">المجموع</th>
+            <th style="width: 12%;">الخصم</th>
+            <th style="width: 12%;">السعر</th>
+            <th style="width: 10%;">الكمية</th>
+            <th style="width: 15%;">الفئة</th>
+            <th style="width: 30%;">اسم الخدمة</th>
+            <th style="width: 5%;">#</th>
         </tr>
         </thead>
         <tbody>
         <tr th:each="item, iterStat : ${items}">
-            <td th:text="${iterStat.count}">1</td>
+            <td class="text-bold" th:text="${item.totalPrice} + ' ر.ي'">50.00 ر.ي</td>
+            <td th:text="${item.discountAmount} + ' ر.ي'">0.00 ر.ي</td>
+            <td th:text="${item.unitPrice} + ' ر.ي'">50.00 ر.ي</td>
+            <td th:text="${item.quantity}">1</td>
+            <td>
+                <span class="category-badge" th:text="${item.category}">استشارة</span>
+            </td>
             <td>
                 <div class="text-bold" th:text="${item.serviceName}">استشارة</div>
                 <div th:if="${item.description}" class="text-muted"
                      style="font-size: 12px;" th:text="${item.description}">وصف الخدمة</div>
             </td>
-            <td>
-                <span class="category-badge" th:text="${item.category}">استشارة</span>
-            </td>
-            <td th:text="${item.quantity}">1</td>
-            <td th:text="${item.unitPrice} + ' ر.ي'">50.00 ر.ي</td>
-            <td th:text="${item.discountAmount} + ' ر.ي'">0.00 ر.ي</td>
-            <td class="text-bold" th:text="${item.totalPrice} + ' ر.ي'">50.00 ر.ي</td>
+            <td th:text="${iterStat.count}">1</td>
         </tr>
         </tbody>
     </table>
