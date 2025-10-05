@@ -1,0 +1,618 @@
+<!-- =============================================================================
+Invoice PDF Template - قالب فاتورة PDF
+src/main/resources/templates/pdf/invoice-template.html
+============================================================================= -->
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title th:text="'فاتورة - ' + ${invoiceNumber}">فاتورة</title>
+    <style>
+        @page {
+            margin: 20mm;
+            @bottom-right {
+                content: "صفحة " counter(page) " من " counter(pages);
+                font-family: 'Amiri', 'Noto Sans Arabic', Arial, sans-serif;
+                font-size: 10px;
+                color: #666;
+            }
+        }
+
+        body {
+            font-family: 'Amiri', 'Noto Sans Arabic', Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            direction: rtl;
+            text-align: right;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Header Section */
+        .invoice-header {
+            border-bottom: 3px solid #2c5aa0;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+            width: 100%;
+        }
+
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .header-table td {
+            vertical-align: middle;
+            padding: 5px;
+        }
+
+        .logo-cell {
+            width: 100px;
+            text-align: right;
+        }
+
+        .logo {
+            width: 90px;
+            height: 90px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 5px;
+        }
+
+        .company-cell {
+            text-align: right;
+        }
+
+        .company-name {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 5px;
+        }
+
+        .company-tagline {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .invoice-title-cell {
+            text-align: left;
+            width: 250px;
+        }
+
+        .invoice-title {
+            font-size: 36px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 5px;
+        }
+
+        .invoice-number {
+            font-size: 18px;
+            color: #666;
+            font-weight: bold;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-block;
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            margin-top: 5px;
+        }
+
+        /* Invoice Info Grid */
+        .invoice-info {
+            margin-bottom: 30px;
+            width: 100%;
+        }
+
+        .info-grid-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .info-grid-table td {
+            vertical-align: top;
+            width: 50%;
+            padding: 0 5px;
+        }
+
+        .info-section {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .info-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #2c5aa0;
+            padding-bottom: 8px;
+        }
+
+        .info-row {
+            margin-bottom: 10px;
+            width: 100%;
+            text-align: right;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #555;
+            display: inline;
+            margin-left: 10px;
+        }
+
+        .info-value {
+            color: #333;
+            display: inline;
+        }
+
+        /* Items Table */
+        .items-section {
+            margin: 30px 0;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #2c5aa0;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .items-table thead {
+            background-color: #2c5aa0;
+            color: white;
+        }
+
+        .items-table th {
+            padding: 12px;
+            text-align: right;
+            font-weight: bold;
+            font-size: 14px;
+            border: 1px solid #2c5aa0;
+        }
+
+        .items-table td {
+            padding: 10px 12px;
+            border: 1px solid #dee2e6;
+            text-align: right;
+        }
+
+        .items-table tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        .items-table tbody tr:hover {
+            background-color: #e9ecef;
+        }
+
+        .category-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            background-color: #e3f2fd;
+            color: #1976d2;
+        }
+
+        /* Financial Summary */
+        .financial-summary {
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .financial-summary-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .financial-summary-table td {
+            vertical-align: top;
+            width: 50%;
+            padding: 0 5px;
+        }
+
+        .summary-box {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .summary-row {
+            width: 100%;
+            padding: 8px 0;
+            border-bottom: 1px solid #dee2e6;
+            text-align: right;
+        }
+
+        .summary-row:last-child {
+            border-bottom: none;
+        }
+
+        .summary-label {
+            font-weight: bold;
+            color: #555;
+            display: inline;
+            margin-left: 15px;
+        }
+
+        .summary-value {
+            color: #333;
+            font-weight: bold;
+            display: inline;
+        }
+
+        .total-row {
+            background-color: #2c5aa0;
+            color: white;
+            padding: 12px 12px 12px 0;
+            border-radius: 6px;
+            margin-top: 10px;
+            text-align: right;
+        }
+
+        .total-row .summary-label,
+        .total-row .summary-value {
+            color: white;
+            font-size: 18px;
+        }
+
+        .amount-due {
+            background-color: #d32f2f;
+            color: white;
+            padding: 12px 12px 12px 0;
+            border-radius: 6px;
+            margin-top: 5px;
+            text-align: right;
+        }
+
+        .amount-due .summary-label,
+        .amount-due .summary-value {
+            color: white;
+            font-size: 18px;
+        }
+
+        .amount-paid {
+            background-color: #388e3c;
+            color: white;
+            padding: 12px 12px 12px 0;
+            border-radius: 6px;
+            margin-top: 5px;
+            text-align: right;
+        }
+
+        .amount-paid .summary-label,
+        .amount-paid .summary-value {
+            color: white;
+            font-size: 18px;
+        }
+
+
+        /* Payments Section */
+        .payments-section {
+            margin: 30px 0;
+        }
+
+        .payments-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .payments-table thead {
+            background-color: #388e3c;
+            color: white;
+        }
+
+        .payments-table th {
+            padding: 10px;
+            text-align: right;
+            font-weight: bold;
+            border: 1px solid #388e3c;
+        }
+
+        .payments-table td {
+            padding: 8px 10px;
+            border: 1px solid #dee2e6;
+            text-align: right;
+        }
+
+        .payments-table tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        .payment-method-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        /* Notes and Terms */
+        .notes-section,
+        .terms-section {
+            margin: 20px 0;
+            background-color: #fffbf0;
+            border: 1px solid #ffc107;
+            border-right: 4px solid #ffc107;
+            border-radius: 6px;
+            padding: 15px;
+        }
+
+        .notes-title,
+        .terms-title {
+            font-weight: bold;
+            color: #f57c00;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .notes-content,
+        .terms-content {
+            color: #555;
+            line-height: 1.8;
+        }
+
+        /* Overdue Warning */
+        .overdue-warning {
+            background-color: #ffebee;
+            border: 2px solid #d32f2f;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #c62828;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        /* Footer */
+        .invoice-footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #dee2e6;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+        }
+
+        .footer-text {
+            margin: 5px 0;
+        }
+
+        /* Utilities */
+        .text-center {
+            text-align: center;
+        }
+
+        .text-left {
+            text-align: left;
+        }
+
+        .text-bold {
+            font-weight: bold;
+        }
+
+        .text-muted {
+            color: #666;
+        }
+
+        .mb-10 {
+            margin-bottom: 10px;
+        }
+
+        .mb-20 {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+<!-- Invoice Header -->
+<div class="invoice-header">
+    <table class="header-table">
+        <tr>
+            <td class="logo-cell">
+                <img th:if="${logo}" th:src="${logo}" alt="Logo" class="logo" />
+            </td>
+            <td class="company-cell">
+                <div class="company-name" th:text="${clinicName}">أمان كير</div>
+                <div class="company-tagline">نظام إدارة العيادات الطبية</div>
+            </td>
+            <td class="invoice-title-cell">
+                <div class="invoice-title">فاتورة</div>
+                <div class="invoice-number" th:text="${invoiceNumber}">INV-2024-001</div>
+                <div class="status-badge" th:style="'background-color:' + ${statusColor}" th:text="${statusLabel}">
+                    معلقة
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<!-- Overdue Warning -->
+<div th:if="${isOverdue}" class="overdue-warning">
+    ⚠️ تنبيه: هذه الفاتورة متأخرة بـ <span th:text="${daysOverdue}">0</span> يوم!
+</div>
+
+<!-- Invoice Information -->
+<div class="invoice-info">
+    <table class="info-grid-table">
+        <tr>
+            <td>
+                <div class="info-section">
+                    <div class="info-title">🏥 معلومات العيادة</div>
+                    <div class="info-row">
+                        <span class="info-label">اسم العيادة:</span>
+                        <span class="info-value" th:text="${clinicName}">أمان كير</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">تاريخ الفاتورة:</span>
+                        <span class="info-value" th:text="${invoiceDate}">01/01/2024</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">تاريخ الاستحقاق:</span>
+                        <span class="info-value" th:text="${dueDate}">15/01/2024</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">تاريخ الطباعة:</span>
+                        <span class="info-value" th:text="${currentDate}">04/10/2025</span>
+                    </div>
+                </div>
+            </td>
+            <td>
+                <div class="info-section">
+                    <div class="info-title">👤 معلومات المريض</div>
+                    <div class="info-row">
+                        <span class="info-label">اسم المريض:</span>
+                        <span class="info-value" th:text="${patientName}">محمد أحمد</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">رقم الهاتف:</span>
+                        <span class="info-value" th:text="${patientPhone}">0123456789</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">حالة الدفع:</span>
+                        <span class="info-value" th:text="${paymentStatusLabel}">معلق</span>
+                    </div>
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<!-- Items Section -->
+<div th:if="${hasItems}" class="items-section">
+    <div class="section-title">📋 تفاصيل الخدمات</div>
+    <table class="items-table">
+        <thead>
+        <tr>
+            <th style="width: 5%;">#</th>
+            <th style="width: 30%;">اسم الخدمة</th>
+            <th style="width: 15%;">الفئة</th>
+            <th style="width: 10%;">الكمية</th>
+            <th style="width: 12%;">السعر</th>
+            <th style="width: 12%;">الخصم</th>
+            <th style="width: 16%;">المجموع</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="item, iterStat : ${items}">
+            <td th:text="${iterStat.count}">1</td>
+            <td>
+                <div class="text-bold" th:text="${item.serviceName}">استشارة</div>
+                <div th:if="${item.description}" class="text-muted"
+                     style="font-size: 12px;" th:text="${item.description}">وصف الخدمة</div>
+            </td>
+            <td>
+                <span class="category-badge" th:text="${item.category}">استشارة</span>
+            </td>
+            <td th:text="${item.quantity}">1</td>
+            <td th:text="${item.unitPrice} + ' ر.ي'">50.00 ر.ي</td>
+            <td th:text="${item.discountAmount} + ' ر.ي'">0.00 ر.ي</td>
+            <td class="text-bold" th:text="${item.totalPrice} + ' ر.ي'">50.00 ر.ي</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Financial Summary -->
+<div class="financial-summary">
+    <table class="financial-summary-table">
+        <tr>
+            <td>
+                <!-- Payments Section -->
+                <div th:if="${hasPayments}">
+                    <div class="section-title">💳 سجل الدفعات</div>
+                    <table class="payments-table">
+                        <thead>
+                        <tr>
+                            <th>التاريخ</th>
+                            <th>المبلغ</th>
+                            <th>طريقة الدفع</th>
+                            <th>رقم المرجع</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="payment : ${payments}">
+                            <td th:text="${payment.paymentDate}">01/01/2024</td>
+                            <td class="text-bold" th:text="${payment.amount} + ' ر.ي'">100.00 ر.ي</td>
+                            <td>
+                                <span class="payment-method-badge" th:text="${payment.paymentMethod}">نقدي</span>
+                            </td>
+                            <td th:text="${payment.referenceNumber} ?: '-'">-</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </td>
+            <td>
+                <div class="summary-box">
+                    <div class="summary-row">
+                        <span class="summary-label">المجموع الفرعي:</span>
+                        <span class="summary-value" th:text="${subtotal} + ' ر.ي'">0.00 ر.ي</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">الخصم:</span>
+                        <span class="summary-value" th:text="'-' + ${discountAmount} + ' ر.ي'">0.00 ر.ي</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">الضريبة:</span>
+                        <span class="summary-value" th:text="${taxAmount} + ' ر.ي'">0.00 ر.ي</span>
+                    </div>
+                    <div class="summary-row total-row">
+                        <span class="summary-label">المجموع الكلي:</span>
+                        <span class="summary-value" th:text="${totalAmount} + ' ر.ي'">0.00 ر.ي</span>
+                    </div>
+                    <div class="summary-row amount-paid">
+                        <span class="summary-label">المبلغ المدفوع:</span>
+                        <span class="summary-value" th:text="${paidAmount} + ' ر.ي'">0.00 ر.ي</span>
+                    </div>
+                    <div class="summary-row amount-due">
+                        <span class="summary-label">المبلغ المتبقي:</span>
+                        <span class="summary-value" th:text="${balanceDue} + ' ر.ي'">0.00 ر.ي</span>
+                    </div>
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<!-- Notes Section -->
+<div th:if="${notes != null and !notes.isEmpty()}" class="notes-section">
+    <div class="notes-title">📝 ملاحظات:</div>
+    <div class="notes-content" th:text="${notes}">ملاحظات إضافية</div>
+</div>
+
+<!-- Terms Section -->
+<div class="terms-section">
+    <div class="terms-title">📜 الشروط والأحكام:</div>
+    <div class="terms-content" th:text="${terms}">شروط الدفع</div>
+</div>
+
+<!-- Footer -->
+<div class="invoice-footer">
+    <div class="footer-text">شكراً لثقتكم بنا</div>
+    <div class="footer-text">نظام أمان كير لإدارة العيادات الطبية</div>
+    <div class="footer-text" th:text="'تم الطباعة في: ' + ${currentDate}">تم الطباعة في: 04/10/2025</div>
+</div>
+</body>
+</html>

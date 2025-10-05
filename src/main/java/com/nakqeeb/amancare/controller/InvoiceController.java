@@ -13,9 +13,11 @@ import com.nakqeeb.amancare.dto.request.InvoiceSearchCriteria;
 import com.nakqeeb.amancare.dto.response.*;
 import com.nakqeeb.amancare.entity.InvoiceStatus;
 import com.nakqeeb.amancare.entity.UserRole;
+import com.nakqeeb.amancare.exception.ResourceNotFoundException;
 import com.nakqeeb.amancare.security.UserPrincipal;
 import com.nakqeeb.amancare.service.InvoiceService;
 import com.nakqeeb.amancare.service.ClinicContextService;
+import com.nakqeeb.amancare.service.pdf.PdfInvoiceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -41,6 +43,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
@@ -59,6 +62,9 @@ public class InvoiceController {
 
     @Autowired
     private ClinicContextService clinicContextService;
+
+    @Autowired
+    private PdfInvoiceService pdfInvoiceService;
 
     // ===================================================================
     // INVOICE OPERATIONS
@@ -563,7 +569,186 @@ public class InvoiceController {
         }
     }
 
-    // TODO: Add PDF generation endpoint
-    // @GetMapping("/{id}/pdf")
-    // public ResponseEntity<byte[]> generateInvoicePdf(...) { }
+    /**
+     * Export invoice as PDF
+     * تصدير الفاتورة كملف PDF
+     */
+    @GetMapping("/{id}/export/pdf")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'ADMIN', 'RECEPTIONIST')")
+    @Operation(
+            summary = "📄 تصدير الفاتورة PDF",
+            description = """
+                تصدير الفاتورة الكاملة في ملف PDF احترافي
+                - معلومات الفاتورة والمريض
+                - جدول الخدمات والأسعار
+                - تفاصيل الدفعات
+                - الشروط والأحكام
+                """,
+            responses = {
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "200",
+                            description = "تم تصدير الفاتورة بنجاح",
+                            content = @Content(mediaType = "application/pdf")
+                    ),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "404",
+                            description = "الفاتورة غير موجودة"
+                    ),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "500",
+                            description = "خطأ في توليد ملف PDF"
+                    )
+            }
+    )
+    public ResponseEntity<byte[]> exportInvoicePdf(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+
+        logger.info("تصدير فاتورة PDF رقم {} بواسطة المستخدم: {}", id, currentUser.getUsername());
+
+        try {
+            // Fetch invoice details
+            InvoiceResponse invoice = invoiceService.getInvoiceById(id, currentUser);
+
+            // Generate PDF
+            byte[] pdfContent = pdfInvoiceService.generateInvoicePdf(invoice);
+
+            // Prepare response headers
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            String filename = String.format("invoice_%s_%s.pdf",
+                    invoice.getInvoiceNumber(),
+                    LocalDate.now().format(DateTimeFormatter.ISO_DATE));
+            headers.setContentDispositionFormData("attachment", filename);
+            headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+            logger.info("تم إنشاء ملف PDF للفاتورة {} بنجاح", invoice.getInvoiceNumber());
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(pdfContent);
+
+        } catch (ResourceNotFoundException e) {
+            logger.error("الفاتورة غير موجودة: {}", id);
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            logger.error("خطأ في تصدير الفاتورة PDF: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * Export invoice receipt as PDF (simplified version)
+     * تصدير إيصال الدفع كملف PDF
+     */
+    @GetMapping("/{id}/export/receipt")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'ADMIN', 'RECEPTIONIST')")
+    @Operation(
+            summary = "🧾 تصدير إيصال الدفع PDF",
+            description = """
+                تصدير إيصال دفع مختصر للفاتورة
+                - معلومات المريض والفاتورة
+                - المبلغ المدفوع والمتبقي
+                - تفاصيل الدفعة الأخيرة
+                - تصميم مبسط للطباعة السريعة
+                """,
+            responses = {
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "200",
+                            description = "تم تصدير الإيصال بنجاح",
+                            content = @Content(mediaType = "application/pdf")
+                    ),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "404",
+                            description = "الفاتورة غير موجودة"
+                    ),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                            responseCode = "500",
+                            description = "خطأ في توليد ملف PDF"
+                    )
+            }
+    )
+    public ResponseEntity<byte[]> exportInvoiceReceipt(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+
+        logger.info("تصدير إيصال PDF للفاتورة {} بواسطة المستخدم: {}", id, currentUser.getUsername());
+
+        try {
+            // Fetch invoice details
+            InvoiceResponse invoice = invoiceService.getInvoiceById(id, currentUser);
+
+            // Validate that invoice has payments
+            if (invoice.getPayments() == null || invoice.getPayments().isEmpty()) {
+                logger.warn("الفاتورة {} لا تحتوي على دفعات", id);
+                return ResponseEntity.badRequest().build();
+            }
+
+            // Generate receipt PDF
+            byte[] pdfContent = pdfInvoiceService.generateInvoiceReceiptPdf(invoice);
+
+            // Prepare response headers
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            String filename = String.format("receipt_%s_%s.pdf",
+                    invoice.getInvoiceNumber(),
+                    LocalDate.now().format(DateTimeFormatter.ISO_DATE));
+            headers.setContentDispositionFormData("attachment", filename);
+            headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+            logger.info("تم إنشاء إيصال PDF للفاتورة {} بنجاح", invoice.getInvoiceNumber());
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(pdfContent);
+
+        } catch (ResourceNotFoundException e) {
+            logger.error("الفاتورة غير موجودة: {}", id);
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            logger.error("خطأ في تصدير إيصال PDF: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * Preview invoice PDF in browser (inline display)
+     * معاينة الفاتورة PDF في المتصفح
+     */
+    @GetMapping("/{id}/preview/pdf")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'ADMIN', 'RECEPTIONIST')")
+    @Operation(
+            summary = "👁️ معاينة الفاتورة PDF",
+            description = "عرض الفاتورة في المتصفح بدون تحميل"
+    )
+    public ResponseEntity<byte[]> previewInvoicePdf(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+
+        logger.info("معاينة فاتورة PDF رقم {} بواسطة المستخدم: {}", id, currentUser.getUsername());
+
+        try {
+            // Fetch invoice details
+            InvoiceResponse invoice = invoiceService.getInvoiceById(id, currentUser);
+
+            // Generate PDF
+            byte[] pdfContent = pdfInvoiceService.generateInvoicePdf(invoice);
+
+            // Prepare response headers for inline display
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            String filename = String.format("invoice_%s.pdf", invoice.getInvoiceNumber());
+            headers.add("Content-Disposition", "inline; filename=\"" + filename + "\"");
+            headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(pdfContent);
+
+        } catch (ResourceNotFoundException e) {
+            logger.error("الفاتورة غير موجودة: {}", id);
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            logger.error("خطأ في معاينة الفاتورة PDF: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
 }
