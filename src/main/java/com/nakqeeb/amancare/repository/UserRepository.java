@@ -142,4 +142,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByIdAndClinicIdAndRole(@Param("id") Long id,
                                               @Param("clinicId") Long clinicId,
                                               @Param("role") UserRole role);
+
+    List<User> findByRoleAndIsActiveTrue(UserRole role);
+
 }

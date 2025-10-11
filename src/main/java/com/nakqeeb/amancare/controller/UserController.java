@@ -280,7 +280,7 @@ public class UserController {
      * Get all clinics (via ADMIN users)
      */
     @GetMapping("/clinics")
-    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
+//    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     @Operation(
             summary = "🏥 قائمة العيادات",
             description = "الحصول على جميع العيادات من خلال مستخدمي ADMIN (بواسطة SYSTEM_ADMIN)"

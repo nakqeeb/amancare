@@ -78,6 +78,12 @@ public class SecurityConfig {
                         .requestMatchers("/docs/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
                         // ===================================================================
+                        // Booking appointments by guest - APIs لحجز المواعيد بدون حساب
+                        // ===================================================================
+                        .requestMatchers("/guest/**").permitAll()
+                        .requestMatchers("/public/**").permitAll()
+
+                        // ===================================================================
                         // CLINIC MANAGEMENT - إدارة العيادات
                         // ===================================================================
 

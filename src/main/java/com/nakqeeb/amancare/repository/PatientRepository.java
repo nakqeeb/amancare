@@ -222,4 +222,10 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
      * Find patient by ID and clinic ID
      */
     Optional<Patient> findByIdAndClinic(Long id, Clinic clinic);
+
+    Optional<Patient> findByPatientNumber(String patientNumber);
+
+    Optional<Patient> findByPhoneAndClinic(String phone, Clinic clinic);
+
+    Optional<Patient> findByEmailAndClinic(String email, Clinic clinic);
 }

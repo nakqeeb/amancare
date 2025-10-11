@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Map;
 
 @Service
@@ -166,6 +168,36 @@ public class EmailService {
                 email,
                 "إعادة إرسال رابط تأكيد البريد الإلكتروني - نظام أمان كير",
                 "resend-email-verification",
+                variables
+        );
+    }
+
+    /**
+     * Send appointment confirmation email for guest booking
+     */
+    public void sendAppointmentConfirmationEmail(String email, String token, String patientName,
+                                                 String patientNumber, String doctorName,
+                                                 String clinicName, LocalDate appointmentDate,
+                                                 LocalTime appointmentTime) {
+        String confirmationUrl = frontendUrl + "/guest/confirm-appointment?token=" + token;
+        String manageUrl = frontendUrl + "/guest/appointments?patientNumber=" + patientNumber;
+
+        Map<String, Object> variables = Map.of(
+                "patientName", patientName,
+                "patientNumber", patientNumber,
+                "doctorName", doctorName,
+                "clinicName", clinicName,
+                "appointmentDate", appointmentDate.toString(),
+                "appointmentTime", appointmentTime.toString(),
+                "confirmationUrl", confirmationUrl,
+                "manageUrl", manageUrl,
+                "expiryTime", "48 ساعة"
+        );
+
+        sendHtmlEmail(
+                email,
+                "تأكيد موعدك - " + clinicName,
+                "appointment-confirmation",
                 variables
         );
     }

@@ -144,6 +144,12 @@
 			<artifactId>spring-boot-starter-mail</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>com.bucket4j</groupId>
+			<artifactId>bucket4j-core</artifactId>
+			<version>8.1.0</version>
+		</dependency>
+
 		<!-- Thymeleaf for email templates -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

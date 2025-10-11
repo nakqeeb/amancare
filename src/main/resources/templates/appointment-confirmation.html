@@ -1,0 +1,167 @@
+<!-- src/main/resources/templates/appointment-confirmation.html -->
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تأكيد الموعد</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            direction: rtl;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: white;
+            padding: 0;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header .logo { font-size: 48px; margin-bottom: 10px; }
+        .header h1 { margin: 0; font-size: 28px; font-weight: 600; }
+        .content { padding: 40px 30px; }
+        .greeting { font-size: 18px; color: #667eea; margin-bottom: 20px; font-weight: 600; }
+        .appointment-card {
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            margin: 25px 0;
+            border-right: 4px solid #667eea;
+        }
+        .appointment-detail {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .appointment-detail:last-child { border-bottom: none; }
+        .detail-label { font-weight: 600; color: #666; }
+        .detail-value { color: #333; font-weight: 500; }
+        .patient-number-box {
+            background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .patient-number-box h3 { margin: 0 0 10px 0; font-size: 16px; }
+        .patient-number { font-size: 28px; font-weight: 700; letter-spacing: 2px; }
+        .confirm-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 40px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .manage-link {
+            display: inline-block;
+            background-color: #28a745;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-top: 15px;
+        }
+        .info-box {
+            background-color: #e3f2fd;
+            border-right: 4px solid #2196f3;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="logo">🏥</div>
+        <h1>تأكيد موعدك الطبي</h1>
+    </div>
+
+    <div class="content">
+        <p class="greeting">مرحباً <span th:text="${patientName}">اسم المريض</span>،</p>
+
+        <p>تم حجز موعدك بنجاح في <strong th:text="${clinicName}">اسم العيادة</strong>.
+            يرجى النقر على الزر أدناه لتأكيد موعدك.</p>
+
+        <div class="patient-number-box">
+            <h3>⭐ رقمك الطبي</h3>
+            <div class="patient-number" th:text="${patientNumber}">P20240001</div>
+            <p style="margin: 10px 0 0 0; font-size: 14px;">احتفظ بهذا الرقم لإدارة مواعيدك</p>
+        </div>
+
+        <div class="appointment-card">
+            <h3 style="margin-top: 0; color: #667eea;">📅 تفاصيل الموعد</h3>
+            <div class="appointment-detail">
+                <span class="detail-label">الطبيب:</span>
+                <span class="detail-value" th:text="${doctorName}">اسم الطبيب</span>
+            </div>
+            <div class="appointment-detail">
+                <span class="detail-label">التاريخ:</span>
+                <span class="detail-value" th:text="${appointmentDate}">التاريخ</span>
+            </div>
+            <div class="appointment-detail">
+                <span class="detail-label">الوقت:</span>
+                <span class="detail-value" th:text="${appointmentTime}">الوقت</span>
+            </div>
+            <div class="appointment-detail">
+                <span class="detail-label">العيادة:</span>
+                <span class="detail-value" th:text="${clinicName}">اسم العيادة</span>
+            </div>
+        </div>
+
+        <div style="text-align: center;">
+            <a th:href="${confirmationUrl}" class="confirm-button">
+                ✅ تأكيد الموعد
+            </a>
+            <br>
+            <a th:href="${manageUrl}" class="manage-link">
+                📋 إدارة مواعيدي
+            </a>
+        </div>
+
+        <div class="info-box">
+            <strong>⚠️ مهم:</strong>
+            <ul style="margin: 10px 0; padding-right: 20px;">
+                <li>يرجى تأكيد موعدك خلال <span th:text="${expiryTime}">48 ساعة</span></li>
+                <li>استخدم رقمك الطبي لعرض أو إلغاء أو إعادة جدولة مواعيدك</li>
+                <li>يرجى الحضور قبل موعدك بـ 15 دقيقة</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>هذه رسالة تلقائية، يرجى عدم الرد عليها</p>
+        <p>© 2024 Amancare - جميع الحقوق محفوظة</p>
+    </div>
+</div>
+</body>
+</html>
