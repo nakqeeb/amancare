@@ -4,9 +4,13 @@ package com.nakqeeb.amancare.controller;
 
 import com.nakqeeb.amancare.dto.request.GuestBookingRequest;
 import com.nakqeeb.amancare.dto.response.*;
+import com.nakqeeb.amancare.entity.DoctorSchedule;
+import com.nakqeeb.amancare.entity.UserRole;
+import com.nakqeeb.amancare.security.UserPrincipal;
 import com.nakqeeb.amancare.service.GuestBookingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,10 +18,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/guest")
@@ -29,6 +36,24 @@ public class GuestBookingController {
 
     private final GuestBookingService guestBookingService;
 
+    // ============================================================================
+    // GET ALL ACTIVE CLINICS
+    // ============================================================================
+
+    @GetMapping("/clinics")
+    @Operation(
+            summary = "📋 جلب جميع العيادات النشطة",
+            description = "إرجاع قائمة بجميع العيادات النشطة المتاحة للحجز من قِبل الزوار (Guest Booking)"
+    )
+    public ResponseEntity<ApiResponse<List<ClinicSummaryResponse>>> getAllActiveClinics() {
+        log.info("REST request to get all active clinics for guest booking");
+
+        List<ClinicSummaryResponse> clinics = guestBookingService.getAllActiveClinics();
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "تم جلب قائمة العيادات بنجاح", clinics));
+    }
+
     /**
      * Get all doctors for a clinic
      */
@@ -38,7 +63,7 @@ public class GuestBookingController {
             description = "عرض قائمة الأطباء المتاحين في العيادة مع أيام عملهم"
     )
     public ResponseEntity<ApiResponse<List<ClinicDoctorSummary>>> getClinicDoctors(
-            @Parameter(description = "معرف العيادة", example = "1")
+            @Parameter(description = "معرف العيادة")
             @PathVariable Long clinicId) {
         try {
             List<ClinicDoctorSummary> doctors = guestBookingService.getClinicDoctors(clinicId);
@@ -51,6 +76,44 @@ public class GuestBookingController {
                     .body(new ApiResponse<>(false, e.getMessage(), null));
         }
     }
+
+    /**
+     * الحصول على جدولة طبيب
+     */
+    @GetMapping("/doctor/{doctorId}/schedules")
+    @Operation(
+            summary = "📅 جدولة الطبيب",
+            description = "الحصول على جدول عمل طبيب معين"
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "تم الحصول على الجدولة بنجاح"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "الطبيب غير موجود"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "غير مصرح"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ممنوع - صلاحيات غير كافية")
+    })
+    public ResponseEntity<ApiResponse<List<DoctorScheduleResponse>>> getDoctorSchedule(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة")
+            @RequestParam(required = false) Long clinicId,
+            @Parameter(description = "معرف الطبيب")
+            @PathVariable Long doctorId) {
+        try {
+            List<DoctorSchedule> schedules = guestBookingService.getDoctorSchedule(
+                    clinicId, doctorId);
+
+            List<DoctorScheduleResponse> responses = schedules.stream()
+                    .map(DoctorScheduleResponse::fromEntity)
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(
+                    new ApiResponse<>(true, "تم الحصول على جدولة الطبيب بنجاح", responses)
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse<>(false, "فشل في الحصول على الجدولة: " + e.getMessage(), null));
+        }
+    }
+
 
     /**
      * Get available time slots for a doctor

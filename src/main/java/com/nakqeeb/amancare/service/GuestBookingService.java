@@ -40,6 +40,20 @@ public class GuestBookingService {
     private static final int TOKEN_VALIDITY_HOURS = 48;
 
     /**
+     * Get all active clinics for guest booking
+     */
+    @Transactional(readOnly = true)
+    public List<ClinicSummaryResponse> getAllActiveClinics() {
+        log.info("Fetching all active clinics for guest booking");
+
+        List<Clinic> clinics = clinicRepository.findByIsActiveTrue();
+
+        return clinics.stream()
+                .map(this::mapToClinicSummaryResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Get all doctors for a specific clinic with their availability
      */
     @Transactional(readOnly = true)
@@ -54,6 +68,21 @@ public class GuestBookingService {
         return doctors.stream()
                 .map(this::mapDoctorToSummary)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * الحصول على جدول طبيب
+     */
+    @Transactional(readOnly = true)
+    public List<DoctorSchedule> getDoctorSchedule(Long clinicId, Long doctorId) {
+        User doctor = userRepository.findById(doctorId)
+                .orElseThrow(() -> new ResourceNotFoundException("الطبيب غير موجود"));
+
+        if (!doctor.getClinic().getId().equals(clinicId)) {
+            throw new BadRequestException("الطبيب لا ينتمي لهذه العيادة");
+        }
+
+        return scheduleRepository.findByDoctorAndIsActiveTrueOrderByDayOfWeek(doctor);
     }
 
     /**
@@ -397,5 +426,30 @@ public class GuestBookingService {
             case FRIDAY -> "الجمعة";
             case SATURDAY -> "السبت";
         };
+    }
+
+    private ClinicSummaryResponse mapToClinicSummaryResponse(Clinic clinic) {
+        ClinicSummaryResponse dto = new ClinicSummaryResponse();
+        dto.setId(clinic.getId());
+        dto.setName(clinic.getName());
+        dto.setPhone(clinic.getPhone());
+        dto.setEmail(clinic.getEmail());
+        dto.setSubscriptionPlan(clinic.getSubscriptionPlan());
+        dto.setIsActive(clinic.getIsActive());
+
+        // Count patients and users if relationships exist
+        if (clinic.getPatients() != null) {
+            dto.setPatientCount((long) clinic.getPatients().size());
+        } else {
+            dto.setPatientCount(0L);
+        }
+
+        if (clinic.getUsers() != null) {
+            dto.setUserCount((long) clinic.getUsers().size());
+        } else {
+            dto.setUserCount(0L);
+        }
+
+        return dto;
     }
 }
