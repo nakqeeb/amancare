@@ -83,6 +83,9 @@ public class SecurityConfig {
                         .requestMatchers("/guest/**").permitAll()
                         .requestMatchers("/public/**").permitAll()
 
+                        // Announcement Management - إدارة الإعلانات
+                        .requestMatchers("/admin/announcements/**").hasRole("SYSTEM_ADMIN")
+
                         // ===================================================================
                         // CLINIC MANAGEMENT - إدارة العيادات
                         // ===================================================================
