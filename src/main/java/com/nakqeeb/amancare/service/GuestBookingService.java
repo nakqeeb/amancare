@@ -35,6 +35,7 @@ public class GuestBookingService {
     private final AppointmentConfirmationTokenRepository confirmationTokenRepository;
     private final DoctorScheduleService doctorScheduleService;
     private final EmailService emailService;
+    private final AppointmentTokenService tokenService;
 
     private static final String PATIENT_NUMBER_PREFIX = "P";
     private static final int TOKEN_VALIDITY_HOURS = 48;
@@ -236,6 +237,9 @@ public class GuestBookingService {
             throw new BadRequestException("الموعد ملغي مسبقاً");
         }
 
+        // **NEW: Free up the token**
+        tokenService.freeTokenFromAppointment(appointment);
+
         // Check if appointment is in the future
         LocalDateTime appointmentDateTime = LocalDateTime.of(
                 appointment.getAppointmentDate(), appointment.getAppointmentTime());
@@ -328,6 +332,10 @@ public class GuestBookingService {
         appointment.setChiefComplaint(request.getChiefComplaint());
         appointment.setNotes(request.getNotes());
         appointment.setCreatedBy(doctor); // Guest bookings are marked as created by the doctor
+
+        // **NEW: Assign token number**
+        tokenService.assignTokenToAppointment(appointment, request.getDurationMinutes());
+
         return appointment;
     }
 
@@ -367,7 +375,8 @@ public class GuestBookingService {
                     appointment.getDoctor().getFullName(),
                     clinic.getName(),
                     appointment.getAppointmentDate(),
-                    appointment.getAppointmentTime()
+                    appointment.getAppointmentTime(),
+                    appointment.getTokenNumber()
             );
         } catch (Exception e) {
             log.error("Failed to send confirmation email: {}", e.getMessage());
@@ -386,6 +395,7 @@ public class GuestBookingService {
                 clinic.getName(),
                 appointment.getAppointmentDate(),
                 appointment.getAppointmentTime(),
+                appointment.getTokenNumber(), // **NEW**
                 patient.getEmail(),
                 "تم حجز موعدك بنجاح! تم إرسال رسالة تأكيد إلى بريدك الإلكتروني. " +
                         "رقم المريض الخاص بك: " + patient.getPatientNumber()

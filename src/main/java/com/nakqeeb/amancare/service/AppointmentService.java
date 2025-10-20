@@ -61,6 +61,9 @@ public class AppointmentService {
     @Autowired
     private DoctorScheduleRepository doctorScheduleRepository;
 
+    @Autowired
+    private AppointmentTokenService tokenService;
+
     /**
      * إنشاء موعد جديد
      */
@@ -127,6 +130,9 @@ public class AppointmentService {
         appointment.setNotes(request.getNotes());
         appointment.setCreatedBy(user);
         appointment.setStatus(AppointmentStatus.SCHEDULED);
+
+        // **NEW: Assign token number to appointment**
+        tokenService.assignTokenToAppointment(appointment, request.getDurationMinutes());
 
         Appointment savedAppointment = appointmentRepository.save(appointment);
         return AppointmentResponse.fromAppointment(savedAppointment);
@@ -343,9 +349,16 @@ public class AppointmentService {
     public void cancelAppointment(Long clinicId, Long appointmentId, String reason) {
         Appointment appointment = findAppointmentByIdAndClinic(appointmentId, clinicId);
 
+        if (appointment.getStatus() == AppointmentStatus.CANCELLED) {
+            throw new BadRequestException("الموعد ملغى بالفعل");
+        }
+
         if (appointment.getStatus() == AppointmentStatus.COMPLETED) {
             throw new BadRequestException("لا يمكن إلغاء موعد مكتمل");
         }
+
+        // **NEW: Free up the token**
+        tokenService.freeTokenFromAppointment(appointment);
 
         appointment.setStatus(AppointmentStatus.CANCELLED);
         if (StringUtils.hasText(reason)) {

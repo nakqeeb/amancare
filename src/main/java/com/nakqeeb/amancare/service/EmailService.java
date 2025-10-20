@@ -178,7 +178,7 @@ public class EmailService {
     public void sendAppointmentConfirmationEmail(String email, String token, String patientName,
                                                  String patientNumber, String doctorName,
                                                  String clinicName, LocalDate appointmentDate,
-                                                 LocalTime appointmentTime) {
+                                                 LocalTime appointmentTime, Integer tokenNumber) {
         String confirmationUrl = frontendUrl + "/guest/confirm-appointment?token=" + token;
         String manageUrl = frontendUrl + "/guest/appointments?patientNumber=" + patientNumber;
 
@@ -189,6 +189,7 @@ public class EmailService {
                 "clinicName", clinicName,
                 "appointmentDate", appointmentDate.toString(),
                 "appointmentTime", appointmentTime.toString(),
+                "tokenNumber", tokenNumber.toString(),
                 "confirmationUrl", confirmationUrl,
                 "manageUrl", manageUrl,
                 "expiryTime", "48 ساعة"

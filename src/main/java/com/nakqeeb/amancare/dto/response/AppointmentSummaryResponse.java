@@ -36,6 +36,9 @@ public class AppointmentSummaryResponse {
     @Schema(description = "مدة الموعد", example = "30")
     private Integer durationMinutes;
 
+    @Schema(description = "رقم الرمز (Token)", example = "5")
+    private Integer tokenNumber;
+
     @Schema(description = "نوع الموعد", example = "CONSULTATION")
     private AppointmentType appointmentType;
 
@@ -60,6 +63,7 @@ public class AppointmentSummaryResponse {
         summary.setAppointmentDate(appointment.getAppointmentDate());
         summary.setAppointmentTime(appointment.getAppointmentTime());
         summary.setDurationMinutes(appointment.getDurationMinutes());
+        summary.setTokenNumber(appointment.getTokenNumber());
         summary.setAppointmentType(appointment.getAppointmentType());
         summary.setStatus(appointment.getStatus());
         summary.setChiefComplaint(appointment.getChiefComplaint());
@@ -87,6 +91,9 @@ public class AppointmentSummaryResponse {
 
     public Integer getDurationMinutes() { return durationMinutes; }
     public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
+
+    public Integer getTokenNumber() { return tokenNumber; }
+    public void setTokenNumber(Integer tokenNumber) { this.tokenNumber = tokenNumber; }
 
     public AppointmentType getAppointmentType() { return appointmentType; }
     public void setAppointmentType(AppointmentType appointmentType) { this.appointmentType = appointmentType; }

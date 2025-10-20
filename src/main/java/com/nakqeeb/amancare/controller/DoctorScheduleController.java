@@ -15,6 +15,7 @@ import com.nakqeeb.amancare.entity.UserRole;
 import com.nakqeeb.amancare.exception.ResourceNotFoundException;
 import com.nakqeeb.amancare.repository.UserRepository;
 import com.nakqeeb.amancare.security.UserPrincipal;
+import com.nakqeeb.amancare.service.AppointmentTokenService;
 import com.nakqeeb.amancare.service.DoctorScheduleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -37,7 +38,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -54,7 +57,8 @@ public class DoctorScheduleController {
     private DoctorScheduleService scheduleService;
     @Autowired
     private UserRepository userRepository;
-
+    @Autowired
+    private AppointmentTokenService tokenService;
     /**
      * إنشاء جدولة جديدة للطبيب
      */
@@ -339,6 +343,46 @@ public class DoctorScheduleController {
 
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم الحصول على الأوقات المتاحة بنجاح", availableSlots)
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse<>(false, "فشل في الحصول على الأوقات المتاحة: " + e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Get available time slots with token numbers
+     */
+    @GetMapping("/doctor/{doctorId}/available-slots-with-tokens")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST')")
+    @Operation(
+            summary = "🎫 الأوقات المتاحة مع أرقام الرموز",
+            description = "الحصول على الأوقات المتاحة مع أرقام الرموز المقابلة لها"
+    )
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> getAvailableTimeSlotsWithTokens(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            /* @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId,*/
+            @Parameter(description = "معرف الطبيب", example = "2")
+            @PathVariable Long doctorId,
+            @Parameter(description = "التاريخ المطلوب", example = "2025-01-15", required = true)
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @Parameter(description = "مدة الموعد بالدقائق", example = "30")
+            @RequestParam(defaultValue = "30") int durationMinutes) {
+        try {
+            User doctor = userRepository.findById(doctorId)
+                    .orElseThrow(() -> new ResourceNotFoundException("الطبيب غير موجود"));
+
+            Map<LocalTime, Integer> availableSlots = tokenService.getAvailableTimeSlotsWithTokens(
+                    doctor, date, durationMinutes
+            );
+
+            // Convert LocalTime to String for JSON
+            Map<String, Integer> result = new LinkedHashMap<>();
+            availableSlots.forEach((time, token) -> result.put(time.toString(), token));
+
+            return ResponseEntity.ok(
+                    new ApiResponse<>(true, "تم الحصول على الأوقات المتاحة مع الرموز بنجاح", result)
             );
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)

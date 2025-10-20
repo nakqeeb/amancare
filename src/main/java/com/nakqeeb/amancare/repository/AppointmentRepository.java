@@ -212,4 +212,54 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
      */
     // @Query("SELECT a FROM Appointment a WHERE a.id = :id AND a.clinic.id = :clinicId")
     Optional<Appointment> findByIdAndClinic(Long id, Clinic clinic);
+
+    /**
+     * Find appointments by doctor, date, and status (for token management)
+     */
+    List<Appointment> findByDoctorAndAppointmentDateAndStatusNot(
+            User doctor,
+            LocalDate date,
+            AppointmentStatus status
+    );
+
+    /**
+     * Find appointment by doctor, date, and token number
+     */
+    Optional<Appointment> findByDoctorAndAppointmentDateAndTokenNumber(
+            User doctor,
+            LocalDate date,
+            Integer tokenNumber
+    );
+
+    /**
+     * Find all appointments for a doctor on a specific date ordered by token number
+     */
+    @Query("SELECT a FROM Appointment a WHERE a.doctor = :doctor AND a.appointmentDate = :date " +
+            "AND a.status != 'CANCELLED' ORDER BY a.tokenNumber ASC")
+    List<Appointment> findActiveAppointmentsByDoctorAndDateOrderByToken(
+            @Param("doctor") User doctor,
+            @Param("date") LocalDate date
+    );
+
+    /**
+     * Find maximum token number for a doctor on a specific date
+     */
+    @Query("SELECT MAX(a.tokenNumber) FROM Appointment a WHERE a.doctor = :doctor " +
+            "AND a.appointmentDate = :date AND a.status != 'CANCELLED'")
+    Optional<Integer> findMaxTokenNumberForDoctorAndDate(
+            @Param("doctor") User doctor,
+            @Param("date") LocalDate date
+    );
+
+    /**
+     * Check if a time slot is available for a doctor on a specific date
+     */
+    @Query("SELECT COUNT(a) FROM Appointment a WHERE a.doctor = :doctor " +
+            "AND a.appointmentDate = :date AND a.appointmentTime = :time " +
+            "AND a.status != 'CANCELLED'")
+    long countAppointmentsByDoctorDateAndTime(
+            @Param("doctor") User doctor,
+            @Param("date") LocalDate date,
+            @Param("time") LocalTime time
+    );
 }

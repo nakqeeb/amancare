@@ -40,6 +40,9 @@ public class GuestBookingResponse {
     @Schema(description = "وقت الموعد")
     private LocalTime appointmentTime;
 
+    @Schema(description = "رقم الرمز (Token)", example = "5")
+    private Integer tokenNumber;
+
     @Schema(description = "البريد الإلكتروني")
     private String email;
 

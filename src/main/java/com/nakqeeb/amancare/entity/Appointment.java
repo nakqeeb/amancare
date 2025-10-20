@@ -51,6 +51,9 @@ public class Appointment extends BaseEntity {
     @Column(name = "duration_minutes")
     private Integer durationMinutes = 30;
 
+    @Column(name = "token_number")
+    private Integer tokenNumber;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "appointment_type")
     private AppointmentType appointmentType = AppointmentType.CONSULTATION;
@@ -110,6 +113,9 @@ public class Appointment extends BaseEntity {
 
     public Integer getDurationMinutes() { return durationMinutes; }
     public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
+
+    public Integer getTokenNumber() { return tokenNumber; }
+    public void setTokenNumber(Integer tokenNumber) { this.tokenNumber = tokenNumber; }
 
     public AppointmentType getAppointmentType() { return appointmentType; }
     public void setAppointmentType(AppointmentType appointmentType) { this.appointmentType = appointmentType; }
