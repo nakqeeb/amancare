@@ -6,6 +6,7 @@ package com.nakqeeb.amancare.service;
 
 import com.nakqeeb.amancare.controller.PatientController;
 import com.nakqeeb.amancare.dto.request.CreateAppointmentRequest;
+import com.nakqeeb.amancare.dto.request.OverrideDurationRequest;
 import com.nakqeeb.amancare.dto.request.UpdateAppointmentRequest;
 import com.nakqeeb.amancare.dto.response.AppointmentPageResponse;
 import com.nakqeeb.amancare.dto.response.AppointmentResponse;
@@ -64,21 +65,25 @@ public class AppointmentService {
     @Autowired
     private AppointmentTokenService tokenService;
 
+    @Autowired
+    private DoctorScheduleService doctorScheduleService;
+
+    @Autowired
+    private DoctorScheduleRepository scheduleRepository;
+
     /**
      * إنشاء موعد جديد
      */
-    public AppointmentResponse createAppointment(UserPrincipal currentUser, Long currentUserId, CreateAppointmentRequest request) {
+    @Transactional
+    public AppointmentResponse createAppointment(UserPrincipal currentUser, CreateAppointmentRequest request) {
         // Get effective clinic ID - this will throw exception if SYSTEM_ADMIN has no context
         Long effectiveClinicId = clinicContextService.getEffectiveClinicId(currentUser);
 
-        logger.info("Creating patient in clinic {} by user {}",
-                effectiveClinicId, currentUser.getUsername());
-
-        // التحقق من وجود العيادة
+        // 1. Validate clinic
         Clinic clinic = clinicRepository.findById(effectiveClinicId)
                 .orElseThrow(() -> new ResourceNotFoundException("العيادة غير موجودة"));
 
-        // التحقق من وجود المريض وانتماؤه للعيادة
+        // 2. Validate patient
         Patient patient = patientRepository.findById(request.getPatientId())
                 .orElseThrow(() -> new ResourceNotFoundException("المريض غير موجود"));
 
@@ -86,7 +91,7 @@ public class AppointmentService {
             throw new BadRequestException("المريض لا ينتمي لهذه العيادة");
         }
 
-        // التحقق من وجود الطبيب وانتماؤه للعيادة
+        // 3. Validate doctor
         User doctor = userRepository.findById(request.getDoctorId())
                 .orElseThrow(() -> new ResourceNotFoundException("الطبيب غير موجود"));
 
@@ -94,47 +99,144 @@ public class AppointmentService {
             throw new BadRequestException("الطبيب لا ينتمي لهذه العيادة");
         }
 
-        if (doctor.getRole() != UserRole.DOCTOR) {
-            throw new BadRequestException("المستخدم المحدد ليس طبيباً");
+        // 4. Get current user
+        User user = userRepository.findByUsername(currentUser.getUsername())
+                .orElseThrow(() -> new ResourceNotFoundException("المستخدم غير موجود"));
+
+        // **UPDATED: Single comprehensive validation (replaces old validateDoctorScheduleAvailability)**
+        // This validates: past dates, working hours, break times, schedule existence, etc.
+        validateAppointmentDateTime(doctor, request.getAppointmentDate(), request.getAppointmentTime());
+
+        // 5. Get duration from doctor's schedule
+        Integer scheduledDuration;
+        try {
+            scheduledDuration = doctorScheduleService.getDurationForDoctor(
+                    doctor, request.getAppointmentDate()
+            );
+        } catch (Exception e) {
+            logger.error("Failed to get duration for doctor {} on date {}: {}",
+                    doctor.getId(), request.getAppointmentDate(), e.getMessage());
+            throw new BadRequestException("فشل في الحصول على مدة الموعد من جدول الطبيب. " +
+                    "يرجى التأكد من وجود جدول للطبيب في هذا التاريخ.");
         }
 
-        // التحقق من المستخدم الحالي
-        User user = userRepository.findById(currentUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("المستخدم الحالي غير موجود"));
+        if (scheduledDuration == null || scheduledDuration <= 0) {
+            throw new BadRequestException("لم يتم تكوين مدة المواعيد لجدول الطبيب في هذا التاريخ");
+        }
 
-        // التحقق من صحة التاريخ والوقت
-        validateAppointmentDateTime(request.getAppointmentDate(), request.getAppointmentTime());
+        // 6. Check if override is requested
+        Integer actualDuration = scheduledDuration;
+        boolean isOverridden = false;
+        String overrideReason = null;
 
-        // التحقق من توفر الطبيب حسب الجدول الزمني
-        validateDoctorScheduleAvailability(
-                doctor,
-                request.getAppointmentDate(),
-                request.getAppointmentTime(),
-                request.getDurationMinutes()
-        );
+        if (request.getOverrideDurationMinutes() != null) {
+            // Validate override
+            if (request.getOverrideReason() == null || request.getOverrideReason().trim().isEmpty()) {
+                throw new BadRequestException("سبب تجاوز المدة مطلوب");
+            }
 
-        // التحقق من عدم تعارض المواعيد
-        checkForConflicts(doctor, request.getAppointmentDate(), request.getAppointmentTime(),
-                request.getDurationMinutes(), null);
+            if (request.getOverrideDurationMinutes() < 5 || request.getOverrideDurationMinutes() > 240) {
+                throw new BadRequestException("المدة المجاوزة يجب أن تكون بين 5 و 240 دقيقة");
+            }
 
-        // إنشاء الموعد
+            actualDuration = request.getOverrideDurationMinutes();
+            isOverridden = true;
+            overrideReason = request.getOverrideReason();
+
+            logger.info("Duration override requested: {} -> {} minutes. Reason: {}",
+                    scheduledDuration, actualDuration, overrideReason);
+        }
+
+        // 7. Validate no conflicts with existing appointments
+        checkForConflicts(doctor, request.getAppointmentDate(),
+                request.getAppointmentTime(), actualDuration, null);
+
+        // 8. Create the appointment
         Appointment appointment = new Appointment();
         appointment.setClinic(clinic);
         appointment.setPatient(patient);
         appointment.setDoctor(doctor);
         appointment.setAppointmentDate(request.getAppointmentDate());
         appointment.setAppointmentTime(request.getAppointmentTime());
-        appointment.setDurationMinutes(request.getDurationMinutes());
+        appointment.setDurationMinutes(actualDuration);
+        appointment.setOriginalDurationMinutes(scheduledDuration);
+        appointment.setIsDurationOverridden(isOverridden);
+        appointment.setOverrideReason(overrideReason);
         appointment.setAppointmentType(request.getAppointmentType());
         appointment.setChiefComplaint(request.getChiefComplaint());
         appointment.setNotes(request.getNotes());
         appointment.setCreatedBy(user);
         appointment.setStatus(AppointmentStatus.SCHEDULED);
 
-        // **NEW: Assign token number to appointment**
-        tokenService.assignTokenToAppointment(appointment, request.getDurationMinutes());
+        // 9. Assign token number
+        try {
+            tokenService.assignTokenToAppointment(appointment);
+        } catch (Exception e) {
+            logger.error("Failed to assign token to appointment: {}", e.getMessage());
+            throw new BadRequestException("فشل في تعيين رقم الرمز للموعد: " + e.getMessage());
+        }
+
+        // 10. Validate that all required fields are set
+        if (appointment.getDurationMinutes() == null) {
+            throw new BadRequestException("مدة الموعد غير محددة");
+        }
+        if (appointment.getTokenNumber() == null) {
+            throw new BadRequestException("رقم الرمز غير محدد");
+        }
+
+        // 11. Save appointment
+        Appointment savedAppointment = appointmentRepository.save(appointment);
+        logger.info("Appointment created successfully: ID={}, Token={}, Duration={}",
+                savedAppointment.getId(), savedAppointment.getTokenNumber(),
+                savedAppointment.getDurationMinutes());
+
+        return AppointmentResponse.fromAppointment(savedAppointment);
+    }
+
+    // **NEW: Add method to override duration for existing appointment**
+
+    @Transactional
+    public AppointmentResponse overrideAppointmentDuration(Long clinicId, Long appointmentId,
+                                                           OverrideDurationRequest request) {
+        Appointment appointment = findAppointmentByIdAndClinic(appointmentId, clinicId);
+
+        if (appointment.getStatus() == AppointmentStatus.CANCELLED) {
+            throw new BadRequestException("لا يمكن تجاوز مدة موعد ملغى");
+        }
+
+        if (appointment.getStatus() == AppointmentStatus.COMPLETED) {
+            throw new BadRequestException("لا يمكن تجاوز مدة موعد مكتمل");
+        }
+
+        // Validate new duration doesn't conflict with next appointment
+        LocalTime endTime = appointment.getAppointmentTime().plusMinutes(request.getNewDurationMinutes());
+        List<Appointment> nextAppointments = appointmentRepository.findByDoctorAndAppointmentDate(
+                appointment.getDoctor(), appointment.getAppointmentDate()
+        );
+
+        for (Appointment next : nextAppointments) {
+            if (next.getId().equals(appointment.getId())) continue;
+            if (next.getStatus() == AppointmentStatus.CANCELLED) continue;
+
+            if (next.getAppointmentTime().isBefore(endTime) &&
+                    next.getAppointmentTime().isAfter(appointment.getAppointmentTime())) {
+                throw new BadRequestException(
+                        "المدة الجديدة تتعارض مع الموعد التالي في " + next.getAppointmentTime()
+                );
+            }
+        }
+
+        // Apply override
+        appointment.setDurationMinutes(request.getNewDurationMinutes());
+        appointment.setIsDurationOverridden(true);
+        appointment.setOverrideReason(request.getReason());
 
         Appointment savedAppointment = appointmentRepository.save(appointment);
+
+        logger.info("Duration overridden for appointment {}: {} -> {} minutes. Reason: {}",
+                appointmentId, appointment.getOriginalDurationMinutes(),
+                request.getNewDurationMinutes(), request.getReason());
+
         return AppointmentResponse.fromAppointment(savedAppointment);
     }
 
@@ -255,71 +357,59 @@ public class AppointmentService {
     /**
      * تحديث موعد
      */
-    public AppointmentResponse updateAppointment(Long clinicId, Long appointmentId, UpdateAppointmentRequest request) {
-        Appointment appointment = findAppointmentByIdAndClinic(appointmentId, clinicId);
+    @Transactional
+    public AppointmentResponse updateAppointment(UserPrincipal currentUser, Long appointmentId,
+                                                 UpdateAppointmentRequest request) {// Get effective clinic ID - this will throw exception if SYSTEM_ADMIN has no context
+        Long effectiveClinicId = clinicContextService.getEffectiveClinicId(currentUser);
 
-        // لا يمكن تحديث موعد مكتمل أو ملغي
-        if (appointment.getStatus() == AppointmentStatus.COMPLETED ||
-                appointment.getStatus() == AppointmentStatus.CANCELLED) {
-            throw new BadRequestException("لا يمكن تحديث موعد مكتمل أو ملغي");
+        Appointment appointment = findAppointmentByIdAndClinic(appointmentId, effectiveClinicId);
+
+        if (appointment.getStatus() == AppointmentStatus.CANCELLED) {
+            throw new BadRequestException("لا يمكن تحديث موعد ملغى");
         }
 
-        // تحديث التاريخ والوقت إذا تم توفيرهم
-        boolean dateTimeChanged = false;
-        LocalDate newDate = appointment.getAppointmentDate();
-        LocalTime newTime = appointment.getAppointmentTime();
-        Integer newDuration = appointment.getDurationMinutes();
+        if (appointment.getStatus() == AppointmentStatus.COMPLETED) {
+            throw new BadRequestException("لا يمكن تحديث موعد مكتمل");
+        }
 
+        // **Use new validation method**
+        if (request.getAppointmentDate() != null || request.getAppointmentTime() != null) {
+            LocalDate newDate = request.getAppointmentDate() != null ?
+                    request.getAppointmentDate() : appointment.getAppointmentDate();
+            LocalTime newTime = request.getAppointmentTime() != null ?
+                    request.getAppointmentTime() : appointment.getAppointmentTime();
+
+            // Use the new comprehensive validation
+            validateAppointmentDateTime(appointment.getDoctor(), newDate, newTime);
+
+            // Also check for conflicts with other appointments
+            if (request.getDurationMinutes() != null) {
+                checkForConflicts(appointment.getDoctor(), newDate, newTime,
+                        request.getDurationMinutes(), appointmentId);
+            }
+        }
+
+        // Update fields
         if (request.getAppointmentDate() != null) {
-            newDate = request.getAppointmentDate();
-            dateTimeChanged = true;
+            appointment.setAppointmentDate(request.getAppointmentDate());
         }
-
         if (request.getAppointmentTime() != null) {
-            newTime = request.getAppointmentTime();
-            dateTimeChanged = true;
+            appointment.setAppointmentTime(request.getAppointmentTime());
         }
-
         if (request.getDurationMinutes() != null) {
-            newDuration = request.getDurationMinutes();
-            dateTimeChanged = true;
+            appointment.setDurationMinutes(request.getDurationMinutes());
         }
-
-        // التحقق من التاريخ والوقت الجديد إذا تم تغييرهم
-        if (dateTimeChanged) {
-            validateAppointmentDateTime(newDate, newTime);
-
-            // NEW: التحقق من توفر الطبيب حسب الجدول الزمني
-            validateDoctorScheduleAvailability( // NEW:
-                    appointment.getDoctor(), // NEW:
-                    newDate, // NEW:
-                    newTime, // NEW:
-                    newDuration // NEW:
-            ); // NEW:
-
-            checkForConflicts(appointment.getDoctor(), newDate, newTime, newDuration, appointmentId);
-
-            appointment.setAppointmentDate(newDate);
-            appointment.setAppointmentTime(newTime);
-            appointment.setDurationMinutes(newDuration);
-        }
-
-        // تحديث الحقول الأخرى
         if (request.getAppointmentType() != null) {
             appointment.setAppointmentType(request.getAppointmentType());
         }
-
         if (request.getChiefComplaint() != null) {
             appointment.setChiefComplaint(request.getChiefComplaint());
         }
-
         if (request.getNotes() != null) {
             appointment.setNotes(request.getNotes());
         }
 
         Appointment updatedAppointment = appointmentRepository.save(appointment);
-        logger.info("Appointment updated successfully: {}", appointmentId);
-
         return AppointmentResponse.fromAppointment(updatedAppointment);
     }
 
@@ -446,18 +536,112 @@ public class AppointmentService {
     /**
      * التحقق من صحة التاريخ والوقت
      */
-    private void validateAppointmentDateTime(LocalDate date, LocalTime time) {
+    /**
+     * Validate appointment date and time
+     * Now validates against doctor's actual schedule instead of hardcoded hours
+     */
+    private void validateAppointmentDateTime(User doctor, LocalDate date, LocalTime time) {
+        // 1. Check if date is in the past
         if (date.isBefore(LocalDate.now())) {
             throw new BadRequestException("لا يمكن حجز موعد في الماضي");
         }
 
+        // 2. Check if time is in the past (for today's appointments)
         if (date.isEqual(LocalDate.now()) && time.isBefore(LocalTime.now())) {
             throw new BadRequestException("لا يمكن حجز موعد في وقت مضى من اليوم");
         }
 
-        // التحقق من ساعات العمل (يمكن تخصيصها لاحقاً)
-        if (time.isBefore(LocalTime.of(8, 0)) || time.isAfter(LocalTime.of(18, 0))) {
-            throw new BadRequestException("الموعد خارج ساعات العمل (8:00 ص - 6:00 م)");
+        // 3. Get doctor's schedule for this day
+        DayOfWeek dayOfWeek = date.getDayOfWeek();
+        Optional<DoctorSchedule> scheduleOpt = scheduleRepository.findDoctorScheduleForDay(
+                doctor, dayOfWeek, date
+        );
+
+        if (scheduleOpt.isEmpty()) {
+            throw new BadRequestException(
+                    String.format("الطبيب لا يعمل في يوم %s. يرجى اختيار يوم عمل آخر",
+                            getDayOfWeekArabic(dayOfWeek))
+            );
+        }
+
+        DoctorSchedule schedule = scheduleOpt.get();
+
+        // 4. Check if schedule is active
+        if (!schedule.getIsActive()) {
+            throw new BadRequestException("جدول الطبيب غير نشط في هذا اليوم");
+        }
+
+        // 5. Check if time is within working hours
+        if (time.isBefore(schedule.getStartTime())) {
+            throw new BadRequestException(
+                    String.format("الوقت المحدد قبل بداية ساعات عمل الطبيب. ساعات العمل: %s - %s",
+                            schedule.getStartTime(), schedule.getEndTime())
+            );
+        }
+
+        if (time.isAfter(schedule.getEndTime()) || time.equals(schedule.getEndTime())) {
+            throw new BadRequestException(
+                    String.format("الوقت المحدد بعد نهاية ساعات عمل الطبيب. ساعات العمل: %s - %s",
+                            schedule.getStartTime(), schedule.getEndTime())
+            );
+        }
+
+        // 6. Check if time falls within break time
+        if (schedule.getBreakStartTime() != null && schedule.getBreakEndTime() != null) {
+            if (!time.isBefore(schedule.getBreakStartTime()) &&
+                    time.isBefore(schedule.getBreakEndTime())) {
+                throw new BadRequestException(
+                        String.format("الوقت المحدد يقع ضمن فترة استراحة الطبيب (%s - %s)",
+                                schedule.getBreakStartTime(), schedule.getBreakEndTime())
+                );
+            }
+        }
+
+        // 7. Validate that appointment time + duration doesn't exceed working hours
+        Integer duration = schedule.getEffectiveDuration();
+        if (duration != null) {
+            LocalTime appointmentEndTime = time.plusMinutes(duration);
+
+            if (appointmentEndTime.isAfter(schedule.getEndTime())) {
+                throw new BadRequestException(
+                        String.format("مدة الموعد (%d دقيقة) تتجاوز ساعات عمل الطبيب. " +
+                                        "آخر موعد متاح: %s",
+                                duration,
+                                schedule.getEndTime().minusMinutes(duration))
+                );
+            }
+
+            // Check if appointment overlaps with break time
+            if (schedule.getBreakStartTime() != null && schedule.getBreakEndTime() != null) {
+                if (time.isBefore(schedule.getBreakStartTime()) &&
+                        appointmentEndTime.isAfter(schedule.getBreakStartTime())) {
+                    throw new BadRequestException(
+                            String.format("الموعد يتداخل مع فترة الاستراحة. " +
+                                            "يرجى اختيار وقت قبل %s أو بعد %s",
+                                    schedule.getBreakStartTime(),
+                                    schedule.getBreakEndTime())
+                    );
+                }
+            }
+        }
+
+        logger.debug("Appointment time validation passed for doctor {} on {} at {}",
+                doctor.getId(), date, time);
+    }
+
+    /**
+     * Helper method to get day of week in Arabic
+     */
+    private String getDayOfWeekArabic(DayOfWeek dayOfWeek) {
+        switch (dayOfWeek) {
+            case SUNDAY: return "الأحد";
+            case MONDAY: return "الاثنين";
+            case TUESDAY: return "الثلاثاء";
+            case WEDNESDAY: return "الأربعاء";
+            case THURSDAY: return "الخميس";
+            case FRIDAY: return "الجمعة";
+            case SATURDAY: return "السبت";
+            default: return dayOfWeek.name();
         }
     }
 
@@ -468,69 +652,69 @@ public class AppointmentService {
      * 2. أن الموعد يقع ضمن ساعات عمل الطبيب
      * 3. أن الموعد لا يتعارض مع فترة الاستراحة
      */
-    private void validateDoctorScheduleAvailability(User doctor, LocalDate appointmentDate, // NEW:
-                                                    LocalTime appointmentTime, Integer durationMinutes) { // NEW:
-        // NEW: الحصول على يوم الأسبوع من تاريخ الموعد
-        DayOfWeek dayOfWeek = appointmentDate.getDayOfWeek(); // NEW:
+    /* private void validateDoctorScheduleAvailability(User doctor, LocalDate appointmentDate,
+                                                    LocalTime appointmentTime, Integer durationMinutes) {
+        // الحصول على يوم الأسبوع من تاريخ الموعد
+        DayOfWeek dayOfWeek = appointmentDate.getDayOfWeek();
 
-        // NEW: البحث عن جدول الطبيب لهذا اليوم
-        Optional<DoctorSchedule> scheduleOpt = doctorScheduleRepository.findDoctorScheduleForDay( // NEW:
-                doctor, dayOfWeek, appointmentDate); // NEW:
+        // البحث عن جدول الطبيب لهذا اليوم
+        Optional<DoctorSchedule> scheduleOpt = doctorScheduleRepository.findDoctorScheduleForDay(
+                doctor, dayOfWeek, appointmentDate);
 
-        // NEW: التحقق من وجود جدول عمل للطبيب في هذا اليوم
-        if (scheduleOpt.isEmpty()) { // NEW:
-            throw new BadRequestException( // NEW:
-                    String.format("الطبيب %s لا يعمل في يوم %s", // NEW:
-                            doctor.getFullName(), // NEW:
-                            getDayNameInArabic(dayOfWeek))); // NEW:
-        } // NEW:
+        // التحقق من وجود جدول عمل للطبيب في هذا اليوم
+        if (scheduleOpt.isEmpty()) {
+            throw new BadRequestException(
+                    String.format("الطبيب %s لا يعمل في يوم %s",
+                            doctor.getFullName(),
+                            getDayNameInArabic(dayOfWeek)));
+        }
 
-        DoctorSchedule schedule = scheduleOpt.get(); // NEW:
+        DoctorSchedule schedule = scheduleOpt.get();
 
-        // NEW: التحقق من أن الموعد يبدأ ضمن ساعات العمل
-        if (appointmentTime.isBefore(schedule.getStartTime()) || // NEW:
-                appointmentTime.isAfter(schedule.getEndTime())) { // NEW:
-            throw new BadRequestException( // NEW:
-                    String.format("الموعد خارج ساعات عمل الطبيب. ساعات العمل: من %s إلى %s", // NEW:
-                            schedule.getStartTime(), schedule.getEndTime())); // NEW:
-        } // NEW:
+        // التحقق من أن الموعد يبدأ ضمن ساعات العمل
+        if (appointmentTime.isBefore(schedule.getStartTime()) ||
+                appointmentTime.isAfter(schedule.getEndTime())) {
+            throw new BadRequestException(
+                    String.format("الموعد خارج ساعات عمل الطبيب. ساعات العمل: من %s إلى %s",
+                            schedule.getStartTime(), schedule.getEndTime()));
+        }
 
-        // NEW: حساب وقت انتهاء الموعد
-        LocalTime appointmentEndTime = appointmentTime.plusMinutes(durationMinutes); // NEW:
+        // حساب وقت انتهاء الموعد
+        LocalTime appointmentEndTime = appointmentTime.plusMinutes(durationMinutes);
 
-        // NEW: التحقق من أن الموعد ينتهي قبل انتهاء ساعات العمل
-        if (appointmentEndTime.isAfter(schedule.getEndTime())) { // NEW:
-            throw new BadRequestException( // NEW:
-                    String.format("الموعد ينتهي بعد نهاية ساعات عمل الطبيب (ينتهي العمل في %s)", // NEW:
-                            schedule.getEndTime())); // NEW:
-        } // NEW:
+        // التحقق من أن الموعد ينتهي قبل انتهاء ساعات العمل
+        if (appointmentEndTime.isAfter(schedule.getEndTime())) {
+            throw new BadRequestException(
+                    String.format("الموعد ينتهي بعد نهاية ساعات عمل الطبيب (ينتهي العمل في %s)",
+                            schedule.getEndTime()));
+        }
 
-        // NEW: التحقق من عدم التعارض مع فترة الاستراحة
-        if (schedule.getBreakStartTime() != null && schedule.getBreakEndTime() != null) { // NEW:
-            LocalTime breakStart = schedule.getBreakStartTime(); // NEW:
-            LocalTime breakEnd = schedule.getBreakEndTime(); // NEW:
+        // التحقق من عدم التعارض مع فترة الاستراحة
+        if (schedule.getBreakStartTime() != null && schedule.getBreakEndTime() != null) {
+            LocalTime breakStart = schedule.getBreakStartTime();
+            LocalTime breakEnd = schedule.getBreakEndTime();
 
-            // NEW: التحقق من أن الموعد لا يتداخل مع فترة الاستراحة
+            // التحقق من أن الموعد لا يتداخل مع فترة الاستراحة
             // الموعد يتداخل إذا:
             // - بدأ قبل نهاية الاستراحة AND انتهى بعد بداية الاستراحة
-            boolean overlapsWithBreak = appointmentTime.isBefore(breakEnd) && // NEW:
-                    appointmentEndTime.isAfter(breakStart); // NEW:
+            boolean overlapsWithBreak = appointmentTime.isBefore(breakEnd) &&
+                    appointmentEndTime.isAfter(breakStart);
 
-            if (overlapsWithBreak) { // NEW:
-                throw new BadRequestException( // NEW:
-                        String.format("الموعد يتعارض مع فترة استراحة الطبيب (من %s إلى %s)", // NEW:
-                                breakStart, breakEnd)); // NEW:
-            } // NEW:
-        } // NEW:
+            if (overlapsWithBreak) {
+                throw new BadRequestException(
+                        String.format("الموعد يتعارض مع فترة استراحة الطبيب (من %s إلى %s)",
+                                breakStart, breakEnd));
+            }
+        }
 
-        logger.info("Doctor schedule validation passed for doctor {} on {} at {}", // NEW:
-                doctor.getFullName(), appointmentDate, appointmentTime); // NEW:
-    } // NEW:
+        logger.info("Doctor schedule validation passed for doctor {} on {} at {}",
+                doctor.getFullName(), appointmentDate, appointmentTime);
+    } */
 
     /**
      * NEW: الحصول على اسم اليوم بالعربية
      */
-    private String getDayNameInArabic(DayOfWeek dayOfWeek) { // NEW:
+    /* private String getDayNameInArabic(DayOfWeek dayOfWeek) { // NEW:
         return switch (dayOfWeek) { // NEW:
             case SUNDAY -> "الأحد"; // NEW:
             case MONDAY -> "الاثنين"; // NEW:
@@ -540,7 +724,7 @@ public class AppointmentService {
             case FRIDAY -> "الجمعة"; // NEW:
             case SATURDAY -> "السبت"; // NEW:
         }; // NEW:
-    } // NEW:
+    }*/ // NEW:
 
 
     /**

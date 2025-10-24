@@ -1,5 +1,6 @@
 package com.nakqeeb.amancare.dto.request;
 
+import com.nakqeeb.amancare.entity.DurationConfigType;
 import com.nakqeeb.amancare.entity.ScheduleType;
 import com.nakqeeb.amancare.entity.UnavailabilityType;
 import jakarta.validation.constraints.NotNull;
@@ -47,6 +48,16 @@ public class CreateDoctorScheduleRequest {
     @Schema(description = "نوع الجدول", example = "REGULAR")
     private ScheduleType scheduleType = ScheduleType.REGULAR;
 
+    @Schema(description = "نوع تكوين المدة", example = "DIRECT")
+    @NotNull(message = "نوع تكوين المدة مطلوب")
+    private DurationConfigType durationConfigType = DurationConfigType.DIRECT;
+
+    @Schema(description = "مدة كل موعد بالدقائق (للنوع DIRECT)", example = "30")
+    private Integer durationMinutes;
+
+    @Schema(description = "عدد المواعيد المستهدف في اليوم (للنوع TOKEN_BASED)", example = "14")
+    private Integer targetTokensPerDay;
+
     @Schema(description = "ملاحظات", example = "جدول العمل الاعتيادي للطبيب")
     private String notes;
 
@@ -80,6 +91,21 @@ public class CreateDoctorScheduleRequest {
 
     public ScheduleType getScheduleType() { return scheduleType; }
     public void setScheduleType(ScheduleType scheduleType) { this.scheduleType = scheduleType; }
+
+    public DurationConfigType getDurationConfigType() { return durationConfigType; }
+    public void setDurationConfigType(DurationConfigType durationConfigType) {
+        this.durationConfigType = durationConfigType;
+    }
+
+    public Integer getDurationMinutes() { return durationMinutes; }
+    public void setDurationMinutes(Integer durationMinutes) {
+        this.durationMinutes = durationMinutes;
+    }
+
+    public Integer getTargetTokensPerDay() { return targetTokensPerDay; }
+    public void setTargetTokensPerDay(Integer targetTokensPerDay) {
+        this.targetTokensPerDay = targetTokensPerDay;
+    }
 
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }

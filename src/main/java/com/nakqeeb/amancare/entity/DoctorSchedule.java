@@ -61,6 +61,19 @@ public class DoctorSchedule extends BaseEntity {
     @Column(name = "schedule_type")
     private ScheduleType scheduleType = ScheduleType.REGULAR;
 
+    @Column(name = "duration_minutes")
+    private Integer durationMinutes = 30;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "duration_config_type")
+    private DurationConfigType durationConfigType = DurationConfigType.DIRECT;
+
+    @Column(name = "target_tokens_per_day")
+    private Integer targetTokensPerDay;
+
+    @Column(name = "calculated_duration_minutes")
+    private Integer calculatedDurationMinutes;
+
     @Column(name = "notes")
     private String notes;
 
@@ -126,6 +139,49 @@ public class DoctorSchedule extends BaseEntity {
     public ScheduleType getScheduleType() { return scheduleType; }
     public void setScheduleType(ScheduleType scheduleType) { this.scheduleType = scheduleType; }
 
+    public Integer getDurationMinutes() { return durationMinutes; }
+    public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
+
+    public DurationConfigType getDurationConfigType() { return durationConfigType; }
+    public void setDurationConfigType(DurationConfigType durationConfigType) {
+        this.durationConfigType = durationConfigType;
+    }
+
+    public Integer getTargetTokensPerDay() { return targetTokensPerDay; }
+    public void setTargetTokensPerDay(Integer targetTokensPerDay) {
+        this.targetTokensPerDay = targetTokensPerDay;
+    }
+
+    public Integer getCalculatedDurationMinutes() { return calculatedDurationMinutes; }
+    public void setCalculatedDurationMinutes(Integer calculatedDurationMinutes) {
+        this.calculatedDurationMinutes = calculatedDurationMinutes;
+    }
+
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
+
+    /**
+     * Get the effective duration to use for appointments
+     * Returns calculated duration for TOKEN_BASED, or direct duration for DIRECT
+     */
+    public Integer getEffectiveDuration() {
+        if (durationConfigType == DurationConfigType.TOKEN_BASED && calculatedDurationMinutes != null) {
+            return calculatedDurationMinutes;
+        }
+        return durationMinutes;
+    }
+
+    /**
+     * Calculate available working minutes (excluding break time)
+     */
+    public int calculateAvailableWorkingMinutes() {
+        long totalMinutes = java.time.Duration.between(startTime, endTime).toMinutes();
+
+        if (breakStartTime != null && breakEndTime != null) {
+            long breakMinutes = java.time.Duration.between(breakStartTime, breakEndTime).toMinutes();
+            totalMinutes -= breakMinutes;
+        }
+
+        return (int) totalMinutes;
+    }
 }

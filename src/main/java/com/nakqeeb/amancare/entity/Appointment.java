@@ -51,6 +51,15 @@ public class Appointment extends BaseEntity {
     @Column(name = "duration_minutes")
     private Integer durationMinutes = 30;
 
+    @Column(name = "is_duration_overridden")
+    private Boolean isDurationOverridden = false;
+
+    @Column(name = "original_duration_minutes")
+    private Integer originalDurationMinutes;
+
+    @Column(name = "override_reason", length = 500)
+    private String overrideReason;
+
     @Column(name = "token_number")
     private Integer tokenNumber;
 
@@ -113,6 +122,21 @@ public class Appointment extends BaseEntity {
 
     public Integer getDurationMinutes() { return durationMinutes; }
     public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
+
+    public Boolean getIsDurationOverridden() { return isDurationOverridden; }
+    public void setIsDurationOverridden(Boolean isDurationOverridden) {
+        this.isDurationOverridden = isDurationOverridden;
+    }
+
+    public Integer getOriginalDurationMinutes() { return originalDurationMinutes; }
+    public void setOriginalDurationMinutes(Integer originalDurationMinutes) {
+        this.originalDurationMinutes = originalDurationMinutes;
+    }
+
+    public String getOverrideReason() { return overrideReason; }
+    public void setOverrideReason(String overrideReason) {
+        this.overrideReason = overrideReason;
+    }
 
     public Integer getTokenNumber() { return tokenNumber; }
     public void setTokenNumber(Integer tokenNumber) { this.tokenNumber = tokenNumber; }

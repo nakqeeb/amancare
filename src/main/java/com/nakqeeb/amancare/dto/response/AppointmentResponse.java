@@ -33,6 +33,15 @@ public class AppointmentResponse {
     @Schema(description = "مدة الموعد بالدقائق", example = "30")
     private Integer durationMinutes;
 
+    @Schema(description = "هل تم تجاوز المدة", example = "false")
+    private Boolean isDurationOverridden;
+
+    @Schema(description = "المدة الأصلية من الجدول", example = "30")
+    private Integer originalDurationMinutes;
+
+    @Schema(description = "سبب تجاوز المدة", example = "استشارة ممتدة")
+    private String overrideReason;
+
     @Schema(description = "رقم الرمز (Token)", example = "5")
     private Integer tokenNumber;
 
@@ -86,6 +95,9 @@ public class AppointmentResponse {
         response.setAppointmentDate(appointment.getAppointmentDate());
         response.setAppointmentTime(appointment.getAppointmentTime());
         response.setDurationMinutes(appointment.getDurationMinutes());
+        response.setIsDurationOverridden(appointment.getIsDurationOverridden());
+        response.setOriginalDurationMinutes(appointment.getOriginalDurationMinutes());
+        response.setOverrideReason(appointment.getOverrideReason());
         response.setTokenNumber(appointment.getTokenNumber());
         response.setAppointmentType(appointment.getAppointmentType());
         response.setStatus(appointment.getStatus());
@@ -116,6 +128,21 @@ public class AppointmentResponse {
 
     public Integer getDurationMinutes() { return durationMinutes; }
     public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
+
+    public Boolean getIsDurationOverridden() { return isDurationOverridden; }
+    public void setIsDurationOverridden(Boolean isDurationOverridden) {
+        this.isDurationOverridden = isDurationOverridden;
+    }
+
+    public Integer getOriginalDurationMinutes() { return originalDurationMinutes; }
+    public void setOriginalDurationMinutes(Integer originalDurationMinutes) {
+        this.originalDurationMinutes = originalDurationMinutes;
+    }
+
+    public String getOverrideReason() { return overrideReason; }
+    public void setOverrideReason(String overrideReason) {
+        this.overrideReason = overrideReason;
+    }
 
     public Integer getTokenNumber() { return tokenNumber; }
     public void setTokenNumber(Integer tokenNumber) { this.tokenNumber = tokenNumber; }

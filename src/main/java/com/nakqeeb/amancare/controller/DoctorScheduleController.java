@@ -7,6 +7,7 @@ package com.nakqeeb.amancare.controller;
 import com.nakqeeb.amancare.annotation.SystemAdminContext;
 import com.nakqeeb.amancare.dto.request.CreateDoctorScheduleRequest;
 import com.nakqeeb.amancare.dto.request.CreateUnavailabilityRequest;
+import com.nakqeeb.amancare.dto.request.UpdateDoctorScheduleRequest;
 import com.nakqeeb.amancare.dto.response.*;
 import com.nakqeeb.amancare.entity.DoctorSchedule;
 import com.nakqeeb.amancare.entity.DoctorUnavailability;
@@ -36,8 +37,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -374,7 +377,7 @@ public class DoctorScheduleController {
                     .orElseThrow(() -> new ResourceNotFoundException("الطبيب غير موجود"));
 
             Map<LocalTime, Integer> availableSlots = tokenService.getAvailableTimeSlotsWithTokens(
-                    doctor, date, durationMinutes
+                    doctor, date
             );
 
             // Convert LocalTime to String for JSON
@@ -387,6 +390,45 @@ public class DoctorScheduleController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse<>(false, "فشل في الحصول على الأوقات المتاحة: " + e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Get duration configuration details for a schedule
+     */
+    @GetMapping("/{scheduleId}/duration-info")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR')")
+    @Operation(
+            summary = "⏱️ معلومات تكوين المدة",
+            description = "الحصول على تفاصيل تكوين مدة المواعيد لجدول معين"
+    )
+    public ResponseEntity<ApiResponse<DoctorScheduleResponse>> getDurationInfo(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId,
+            @Parameter(description = "معرف الجدول")
+            @PathVariable Long scheduleId) {
+        try {
+            // For READ operations, SYSTEM_ADMIN doesn't need context
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                // SYSTEM_ADMIN can specify clinic or get all
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN reading duration configuration details for a schedule from clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                // Other users can only see their clinic
+                effectiveClinicId = currentUser.getClinicId();
+            }
+            DoctorSchedule schedule = scheduleService.getScheduleById(effectiveClinicId, scheduleId);
+            DoctorScheduleResponse response = DoctorScheduleResponse.fromEntity(schedule);
+
+            return ResponseEntity.ok(
+                    new ApiResponse<>(true, "تم الحصول على معلومات المدة بنجاح", response)
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse<>(false, e.getMessage(), null));
         }
     }
 
@@ -600,6 +642,235 @@ public class DoctorScheduleController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse<>(false, "فشل في الحصول على الجداول: " + e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Update an existing schedule
+     */
+    @PutMapping("/{scheduleId}")
+    @SystemAdminContext
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR')")
+    @Operation(
+            summary = "✏️ تحديث جدول طبيب",
+            description = "تحديث جدول موجود للطبيب مع إمكانية تعديل تكوين المدة"
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "تم التحديث بنجاح"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "طلب غير صحيح"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "الجدول غير موجود"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "غير مصرح"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ممنوع")
+    })
+    public ResponseEntity<ApiResponse<DoctorScheduleResponse>> updateSchedule(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف الجدول", required = true)
+            @PathVariable Long scheduleId,
+            @Valid @RequestBody UpdateDoctorScheduleRequest request) {
+        try {
+
+            DoctorSchedule updatedSchedule = scheduleService.updateDoctorSchedule(
+                    currentUser.getClinicId(), scheduleId, request
+            );
+
+            DoctorScheduleResponse response = DoctorScheduleResponse.fromEntity(updatedSchedule);
+
+            return ResponseEntity.ok(
+                    new ApiResponse<>(true, "تم تحديث الجدول بنجاح", response)
+            );
+        } catch (Exception e) {
+            logger.error("Error updating schedule {}: {}", scheduleId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse<>(false, "فشل في تحديث الجدول: " + e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Get a specific schedule by ID
+     */
+    @GetMapping("/{scheduleId}")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE') or hasRole('RECEPTIONIST')")
+    @Operation(
+            summary = "🔍 الحصول على جدول محدد",
+            description = "الحصول على تفاصيل جدول معين بواسطة معرفه"
+    )
+    public ResponseEntity<ApiResponse<DoctorScheduleResponse>> getScheduleById(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId,
+            @Parameter(description = "معرف الجدول", required = true)
+            @PathVariable Long scheduleId) {
+        try {
+            // For READ operations, SYSTEM_ADMIN doesn't need context
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                // SYSTEM_ADMIN can specify clinic or get all
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN reading specific schedule by ID from clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                // Other users can only see their clinic
+                effectiveClinicId = currentUser.getClinicId();
+            }
+
+            DoctorSchedule schedule = scheduleService.getScheduleById(effectiveClinicId, scheduleId);
+            DoctorScheduleResponse response = DoctorScheduleResponse.fromEntity(schedule);
+
+            return ResponseEntity.ok(
+                    new ApiResponse<>(true, "تم الحصول على الجدول بنجاح", response)
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Batch update schedules for multiple days
+     */
+    @PutMapping("/batch/doctor/{doctorId}")
+    @SystemAdminContext
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN')")
+    @Operation(
+            summary = "📋 تحديث دفعة من الجداول",
+            description = "تحديث جداول متعددة لنفس الطبيب في أيام مختلفة"
+    )
+    public ResponseEntity<ApiResponse<List<DoctorScheduleResponse>>> batchUpdateSchedules(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف الطبيب", required = true)
+            @PathVariable Long doctorId,
+            @Parameter(description = "أيام الأسبوع المطلوب تحديثها", required = true)
+            @RequestParam List<DayOfWeek> daysOfWeek,
+            @Valid @RequestBody UpdateDoctorScheduleRequest request) {
+        try {
+            List<DoctorSchedule> updatedSchedules = scheduleService.batchUpdateSchedules(
+                    currentUser.getClinicId(), doctorId, request, daysOfWeek
+            );
+
+            List<DoctorScheduleResponse> responses = updatedSchedules.stream()
+                    .map(DoctorScheduleResponse::fromEntity)
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(
+                    new ApiResponse<>(true,
+                            String.format("تم تحديث %d جدول بنجاح", responses.size()),
+                            responses)
+            );
+        } catch (Exception e) {
+            logger.error("Error batch updating schedules: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse<>(false, "فشل في تحديث الجداول: " + e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Deactivate a schedule
+     */
+    @PutMapping("/{scheduleId}/deactivate")
+    @SystemAdminContext
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN')")
+    @Operation(
+            summary = "🚫 تعطيل جدول",
+            description = "تعطيل جدول طبيب (لا يمكن تعطيله إذا كان يحتوي على مواعيد مستقبلية)"
+    )
+    public ResponseEntity<ApiResponse<Void>> deactivateSchedule(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف الجدول", required = true)
+            @PathVariable Long scheduleId) {
+        try {
+            scheduleService.deactivateSchedule(currentUser.getClinicId(), scheduleId);
+
+            return ResponseEntity.ok(
+                    new ApiResponse<>(true, "تم تعطيل الجدول بنجاح", null)
+            );
+        } catch (Exception e) {
+            logger.error("Error deactivating schedule {}: {}", scheduleId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse<>(false, "فشل في تعطيل الجدول: " + e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Clone schedule to new days
+     */
+    @PostMapping("/{scheduleId}/clone")
+    @SystemAdminContext
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN')")
+    @Operation(
+            summary = "📑 نسخ جدول إلى أيام جديدة",
+            description = "نسخ جدول موجود إلى أيام أخرى من الأسبوع"
+    )
+    public ResponseEntity<ApiResponse<List<DoctorScheduleResponse>>> cloneSchedule(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف الجدول المصدر", required = true)
+            @PathVariable Long scheduleId,
+            @Parameter(description = "الأيام المستهدفة للنسخ", required = true)
+            @RequestParam List<DayOfWeek> targetDays) {
+        try {
+            List<DoctorSchedule> clonedSchedules = scheduleService.cloneScheduleToNewDays(
+                    currentUser.getClinicId(), scheduleId, targetDays
+            );
+
+            List<DoctorScheduleResponse> responses = clonedSchedules.stream()
+                    .map(DoctorScheduleResponse::fromEntity)
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(
+                    new ApiResponse<>(true,
+                            String.format("تم نسخ الجدول إلى %d أيام جديدة", responses.size()),
+                            responses)
+            );
+        } catch (Exception e) {
+            logger.error("Error cloning schedule {}: {}", scheduleId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse<>(false, "فشل في نسخ الجدول: " + e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Get affected appointments count before updating schedule
+     */
+    @GetMapping("/{scheduleId}/affected-appointments")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR')")
+    @Operation(
+            summary = "📊 عدد المواعيد المتأثرة",
+            description = "الحصول على عدد المواعيد التي ستتأثر بتحديث الجدول"
+    )
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getAffectedAppointmentsCount(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId,
+            @Parameter(description = "معرف الجدول", required = true)
+            @PathVariable Long scheduleId) {
+        try {
+            // For READ operations, SYSTEM_ADMIN doesn't need context
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                // SYSTEM_ADMIN can specify clinic or get all
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN reading affected appointments count before updating schedule from clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                // Other users can only see their clinic
+                effectiveClinicId = currentUser.getClinicId();
+            }
+
+            DoctorSchedule schedule = scheduleService.getScheduleById(effectiveClinicId, scheduleId);
+
+            // This would need to be implemented in the service
+            Map<String, Object> result = new HashMap<>();
+            result.put("scheduleId", scheduleId);
+            result.put("doctorName", schedule.getDoctor().getFullName());
+            result.put("dayOfWeek", schedule.getDayOfWeek());
+            result.put("hasExistingAppointments", false); // Placeholder
+            result.put("affectedCount", 0); // Placeholder
+
+            return ResponseEntity.ok(
+                    new ApiResponse<>(true, "تم الحصول على معلومات المواعيد المتأثرة", result)
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse<>(false, e.getMessage(), null));
         }
     }
 }

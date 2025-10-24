@@ -55,7 +55,28 @@ public class DoctorScheduleResponse {
     private String notes;
 
     @Schema(description = "حالة النشاط", example = "true")
-    private boolean active;
+    private boolean isActive;
+
+    @Schema(description = "مدة كل موعد بالدقائق", example = "30")
+    private Integer durationMinutes;
+
+    @Schema(description = "نوع تكوين المدة", example = "DIRECT")
+    private String durationConfigType;
+
+    @Schema(description = "عدد المواعيد المستهدف في اليوم", example = "14")
+    private Integer targetTokensPerDay;
+
+    @Schema(description = "المدة المحسوبة (للنوع TOKEN_BASED)", example = "30")
+    private Integer calculatedDurationMinutes;
+
+    @Schema(description = "المدة الفعلية المستخدمة", example = "30")
+    private Integer effectiveDuration;
+
+    @Schema(description = "عدد الدقائق المتاحة للعمل", example = "420")
+    private Integer availableWorkingMinutes;
+
+    @Schema(description = "عدد المواعيد المتوقع", example = "14")
+    private Integer expectedTokens;
 
     // Constructors
     public DoctorScheduleResponse() {}
@@ -77,7 +98,22 @@ public class DoctorScheduleResponse {
         response.setEndDate(schedule.getEndDate());
         response.setScheduleType(schedule.getScheduleType());
         response.setNotes(schedule.getNotes());
-        response.setActive(schedule.getIsActive());
+        response.setIsActive(schedule.getIsActive());
+        response.setDurationMinutes(schedule.getDurationMinutes());
+        response.setDurationConfigType(schedule.getDurationConfigType() != null ?
+                schedule.getDurationConfigType().name() : null);
+        response.setTargetTokensPerDay(schedule.getTargetTokensPerDay());
+        response.setCalculatedDurationMinutes(schedule.getCalculatedDurationMinutes());
+        response.setEffectiveDuration(schedule.getEffectiveDuration());
+        response.setAvailableWorkingMinutes(schedule.calculateAvailableWorkingMinutes());
+
+        // Calculate expected tokens
+        if (schedule.getEffectiveDuration() != null && schedule.getEffectiveDuration() > 0) {
+            response.setExpectedTokens(
+                    schedule.calculateAvailableWorkingMinutes() / schedule.getEffectiveDuration()
+            );
+        }
+
         return response;
     }
 
@@ -118,6 +154,41 @@ public class DoctorScheduleResponse {
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
 
-    public boolean isActive() { return active; }
-    public void setActive(boolean active) { this.active = active; }
+    public Boolean getIsActive() { return isActive; }
+    public void setIsActive(Boolean isActive) { this.isActive = isActive; }
+
+    public Integer getDurationMinutes() { return durationMinutes; }
+    public void setDurationMinutes(Integer durationMinutes) {
+        this.durationMinutes = durationMinutes;
+    }
+
+    public String getDurationConfigType() { return durationConfigType; }
+    public void setDurationConfigType(String durationConfigType) {
+        this.durationConfigType = durationConfigType;
+    }
+
+    public Integer getTargetTokensPerDay() { return targetTokensPerDay; }
+    public void setTargetTokensPerDay(Integer targetTokensPerDay) {
+        this.targetTokensPerDay = targetTokensPerDay;
+    }
+
+    public Integer getCalculatedDurationMinutes() { return calculatedDurationMinutes; }
+    public void setCalculatedDurationMinutes(Integer calculatedDurationMinutes) {
+        this.calculatedDurationMinutes = calculatedDurationMinutes;
+    }
+
+    public Integer getEffectiveDuration() { return effectiveDuration; }
+    public void setEffectiveDuration(Integer effectiveDuration) {
+        this.effectiveDuration = effectiveDuration;
+    }
+
+    public Integer getAvailableWorkingMinutes() { return availableWorkingMinutes; }
+    public void setAvailableWorkingMinutes(Integer availableWorkingMinutes) {
+        this.availableWorkingMinutes = availableWorkingMinutes;
+    }
+
+    public Integer getExpectedTokens() { return expectedTokens; }
+    public void setExpectedTokens(Integer expectedTokens) {
+        this.expectedTokens = expectedTokens;
+    }
 }

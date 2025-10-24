@@ -12,6 +12,7 @@ public class ClinicSummaryResponse {
     private String name;
     private String phone;
     private String email;
+    private String address;
     private SubscriptionPlan subscriptionPlan;
     private Boolean isActive;
     private Long patientCount;

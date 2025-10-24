@@ -26,7 +26,7 @@ import java.util.Map;
  * Endpoints for managing appointment tokens and time slots
  */
 @RestController
-@RequestMapping("/api/appointments/tokens")
+@RequestMapping("/appointments/tokens")
 @Tag(name = "Appointment Tokens", description = "إدارة رموز المواعيد والأوقات المتاحة")
 public class AppointmentTokenController {
 
@@ -48,15 +48,13 @@ public class AppointmentTokenController {
             @PathVariable Long doctorId,
             @Parameter(description = "التاريخ", required = true, example = "2025-01-15")
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @Parameter(description = "مدة الموعد بالدقائق", example = "30")
-            @RequestParam(defaultValue = "30") int durationMinutes,
             @AuthenticationPrincipal UserPrincipal currentUser) {
 
         User doctor = userRepository.findById(doctorId)
                 .orElseThrow(() -> new ResourceNotFoundException("الطبيب غير موجود"));
 
         Map<LocalTime, Integer> slotsWithTokens = tokenService.generateTimeSlotsWithTokens(
-                doctor, date, durationMinutes
+                doctor, date
         );
 
         // Convert LocalTime keys to String for JSON serialization
@@ -81,14 +79,13 @@ public class AppointmentTokenController {
             @Parameter(description = "التاريخ", required = true, example = "2025-01-15")
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @Parameter(description = "مدة الموعد بالدقائق", example = "30")
-            @RequestParam(defaultValue = "30") int durationMinutes,
             @AuthenticationPrincipal UserPrincipal currentUser) {
 
         User doctor = userRepository.findById(doctorId)
                 .orElseThrow(() -> new ResourceNotFoundException("الطبيب غير موجود"));
 
         Map<LocalTime, Integer> availableSlots = tokenService.getAvailableTimeSlotsWithTokens(
-                doctor, date, durationMinutes
+                doctor, date
         );
 
         // Convert LocalTime keys to String for JSON serialization
@@ -114,15 +111,13 @@ public class AppointmentTokenController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @Parameter(description = "الوقت", required = true, example = "10:30:00")
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime time,
-            @Parameter(description = "مدة الموعد بالدقائق", example = "30")
-            @RequestParam(defaultValue = "30") int durationMinutes,
             @AuthenticationPrincipal UserPrincipal currentUser) {
 
         User doctor = userRepository.findById(doctorId)
                 .orElseThrow(() -> new ResourceNotFoundException("الطبيب غير موجود"));
 
         Integer tokenNumber = tokenService.getTokenNumberForTimeSlot(
-                doctor, date, time, durationMinutes
+                doctor, date, time
         );
 
         return ResponseEntity.ok(

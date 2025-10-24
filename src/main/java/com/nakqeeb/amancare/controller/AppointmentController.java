@@ -6,6 +6,7 @@ package com.nakqeeb.amancare.controller;
 
 import com.nakqeeb.amancare.annotation.SystemAdminContext;
 import com.nakqeeb.amancare.dto.request.CreateAppointmentRequest;
+import com.nakqeeb.amancare.dto.request.OverrideDurationRequest;
 import com.nakqeeb.amancare.dto.request.UpdateAppointmentRequest;
 import com.nakqeeb.amancare.dto.response.*;
 import com.nakqeeb.amancare.entity.AppointmentStatus;
@@ -68,7 +69,6 @@ public class AppointmentController {
                           "doctorId": 2,
                           "appointmentDate": "2024-08-28",
                           "appointmentTime": "10:30:00",
-                          "durationMinutes": 30,
                           "appointmentType": "CONSULTATION",
                           "chiefComplaint": "ألم في الصدر وصعوبة في التنفس",
                           "notes": "المريض يشكو من الأعراض منذ أسبوعين"
@@ -98,7 +98,7 @@ public class AppointmentController {
                         contextInfo.getActingAsClinicId(), contextInfo.getReason());
             }
             AppointmentResponse appointment = appointmentService.createAppointment(
-                    currentUser, currentUser.getId(), request);
+                    currentUser, request);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(new ApiResponse<>(true, "تم إنشاء الموعد بنجاح", appointment));
         } catch (Exception e) {
@@ -294,6 +294,49 @@ public class AppointmentController {
     }
 
     /**
+     * Override appointment duration
+     */
+    @PutMapping("/{appointmentId}/override-duration")
+    @SystemAdminContext
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('NURSE')")
+    @Operation(
+            summary = "⏱️ تجاوز مدة الموعد",
+            description = "تجاوز مدة موعد محدد مع تقديم سبب"
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "تم تجاوز المدة بنجاح"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "طلب غير صحيح"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "الموعد غير موجود"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "غير مصرح"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ممنوع")
+    })
+    public ResponseEntity<ApiResponse<AppointmentResponse>> overrideAppointmentDuration(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف الموعد", required = true)
+            @PathVariable Long appointmentId,
+            @Valid @RequestBody OverrideDurationRequest request) {
+        try {
+            // Log if SYSTEM_ADMIN is acting with context
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                ClinicContextService.ClinicContextInfo contextInfo =
+                        clinicContextService.getCurrentContext(currentUser);
+                logger.info("SYSTEM_ADMIN is overriding updating an appointment with clinic context. ActingClinicId: {}, Reason: {}",
+                        contextInfo.getActingAsClinicId(), contextInfo.getReason());
+            }
+            AppointmentResponse response = appointmentService.overrideAppointmentDuration(
+                    currentUser.getClinicId(), appointmentId, request
+            );
+
+            return ResponseEntity.ok(
+                    new ApiResponse<>(true, "تم تجاوز مدة الموعد بنجاح", response)
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+
+    /**
      * تحديث موعد
      */
     @PutMapping("/{id}")
@@ -310,7 +353,6 @@ public class AppointmentController {
                         {
                           "appointmentDate": "2024-08-29",
                           "appointmentTime": "14:30:00",
-                          "durationMinutes": 45,
                           "appointmentType": "FOLLOW_UP",
                           "chiefComplaint": "متابعة الحالة والتحسن",
                           "notes": "المريض يشعر بتحسن ملحوظ منذ الزيارة الأخيرة"
@@ -342,7 +384,7 @@ public class AppointmentController {
                         contextInfo.getActingAsClinicId(), contextInfo.getReason());
             }
             AppointmentResponse appointment = appointmentService.updateAppointment(
-                    currentUser.getClinicId(), id, request);
+                    currentUser, id, request);
             return ResponseEntity.ok(
                     new ApiResponse<>(true, "تم تحديث الموعد بنجاح", appointment)
             );

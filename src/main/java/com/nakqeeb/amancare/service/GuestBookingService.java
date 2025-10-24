@@ -129,15 +129,20 @@ public class GuestBookingService {
             throw new BadRequestException("الطبيب لا ينتمي لهذه العيادة");
         }
 
+        // **NEW: Get duration from doctor's schedule instead of request**
+        Integer scheduledDuration = doctorScheduleService.getDurationForDoctor(
+                doctor, request.getAppointmentDate()
+        );
+
         // 2. Validate doctor availability
         if (!doctorScheduleService.isDoctorAvailable(doctor, request.getAppointmentDate(),
                 request.getAppointmentTime())) {
             throw new BadRequestException("الطبيب غير متاح في هذا الوقت");
         }
 
-        // 3. Check for conflicting appointments
+        // 3. Check for conflicting appointments (use scheduled duration)
         if (hasConflictingAppointment(doctor, request.getAppointmentDate(),
-                request.getAppointmentTime(), request.getDurationMinutes())) {
+                request.getAppointmentTime(), scheduledDuration)) {
             throw new BadRequestException("يوجد موعد آخر في هذا الوقت");
         }
 
@@ -320,13 +325,19 @@ public class GuestBookingService {
 
     private Appointment createAppointment(Patient patient, User doctor, Clinic clinic,
                                           GuestBookingRequest request) {
+        // **NEW: Get duration from schedule**
+        Integer scheduledDuration = doctorScheduleService.getDurationForDoctor(
+                doctor, request.getAppointmentDate()
+        );
         Appointment appointment = new Appointment();
         appointment.setClinic(clinic);
         appointment.setPatient(patient);
         appointment.setDoctor(doctor);
         appointment.setAppointmentDate(request.getAppointmentDate());
         appointment.setAppointmentTime(request.getAppointmentTime());
-        appointment.setDurationMinutes(request.getDurationMinutes());
+        appointment.setDurationMinutes(scheduledDuration);
+        appointment.setOriginalDurationMinutes(scheduledDuration);
+        appointment.setIsDurationOverridden(false);
         appointment.setAppointmentType(request.getAppointmentType());
         appointment.setStatus(AppointmentStatus.SCHEDULED); // Will be CONFIRMED after email confirmation
         appointment.setChiefComplaint(request.getChiefComplaint());
@@ -334,7 +345,7 @@ public class GuestBookingService {
         appointment.setCreatedBy(doctor); // Guest bookings are marked as created by the doctor
 
         // **NEW: Assign token number**
-        tokenService.assignTokenToAppointment(appointment, request.getDurationMinutes());
+        tokenService.assignTokenToAppointment(appointment);
 
         return appointment;
     }
@@ -444,6 +455,7 @@ public class GuestBookingService {
         dto.setName(clinic.getName());
         dto.setPhone(clinic.getPhone());
         dto.setEmail(clinic.getEmail());
+        dto.setAddress(clinic.getAddress());
         dto.setSubscriptionPlan(clinic.getSubscriptionPlan());
         dto.setIsActive(clinic.getIsActive());
 

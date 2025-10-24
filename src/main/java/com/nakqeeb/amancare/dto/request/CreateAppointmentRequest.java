@@ -38,9 +38,14 @@ public class CreateAppointmentRequest {
     @NotNull(message = "وقت الموعد مطلوب")
     private LocalTime appointmentTime;
 
-    @Schema(description = "مدة الموعد بالدقائق", example = "30")
-    @Positive(message = "مدة الموعد يجب أن تكون رقماً موجباً")
-    private Integer durationMinutes = 30;
+    @Schema(description = "مدة الموعد بالدقائق (اختياري - يتم أخذها من جدول الطبيب تلقائياً)", example = "30")
+    private Integer durationMinutes; // No longer required
+
+    @Schema(description = "تجاوز مدة الموعد (اختياري)", example = "60")
+    private Integer overrideDurationMinutes;
+
+    @Schema(description = "سبب تجاوز المدة", example = "استشارة ممتدة")
+    private String overrideReason;
 
     @Schema(description = "نوع الموعد", example = "CONSULTATION")
     private AppointmentType appointmentType = AppointmentType.CONSULTATION;
@@ -72,6 +77,15 @@ public class CreateAppointmentRequest {
     public Integer getDurationMinutes() { return durationMinutes; }
     public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
 
+    public Integer getOverrideDurationMinutes() { return overrideDurationMinutes; }
+    public void setOverrideDurationMinutes(Integer overrideDurationMinutes) {
+        this.overrideDurationMinutes = overrideDurationMinutes;
+    }
+
+    public String getOverrideReason() { return overrideReason; }
+    public void setOverrideReason(String overrideReason) {
+        this.overrideReason = overrideReason;
+    }
     public AppointmentType getAppointmentType() { return appointmentType; }
     public void setAppointmentType(AppointmentType appointmentType) { this.appointmentType = appointmentType; }
 

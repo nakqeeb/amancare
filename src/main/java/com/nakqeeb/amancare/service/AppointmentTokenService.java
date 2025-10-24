@@ -30,6 +30,9 @@ public class AppointmentTokenService {
     private static final Logger logger = LoggerFactory.getLogger(AppointmentTokenService.class);
 
     @Autowired
+    private DoctorScheduleService doctorScheduleService;
+
+    @Autowired
     private AppointmentRepository appointmentRepository;
 
     @Autowired
@@ -40,11 +43,13 @@ public class AppointmentTokenService {
      *
      * @param doctor The doctor
      * @param date The appointment date
-     * @param durationMinutes Duration of each appointment slot
      * @return Map of time slots to token numbers
      */
     @Transactional(readOnly = true)
-    public Map<LocalTime, Integer> generateTimeSlotsWithTokens(User doctor, LocalDate date, int durationMinutes) {
+    public Map<LocalTime, Integer> generateTimeSlotsWithTokens(User doctor, LocalDate date) {
+        // **UPDATED: Get duration from doctor's schedule instead of parameter**
+        Integer durationMinutes = doctorScheduleService.getDurationForDoctor(doctor, date);
+
         // 1. Get doctor's schedule for this day
         DayOfWeek dayOfWeek = date.getDayOfWeek();
         Optional<DoctorSchedule> scheduleOpt = scheduleRepository.findDoctorScheduleForDay(
@@ -85,13 +90,12 @@ public class AppointmentTokenService {
      *
      * @param doctor The doctor
      * @param date The appointment date
-     * @param durationMinutes Duration of each appointment slot
      * @return Map of available time slots to token numbers
      */
     @Transactional(readOnly = true)
-    public Map<LocalTime, Integer> getAvailableTimeSlotsWithTokens(User doctor, LocalDate date, int durationMinutes) {
+    public Map<LocalTime, Integer> getAvailableTimeSlotsWithTokens(User doctor, LocalDate date) {
         // 1. Generate all time slots with tokens
-        Map<LocalTime, Integer> allSlots = generateTimeSlotsWithTokens(doctor, date, durationMinutes);
+        Map<LocalTime, Integer> allSlots = generateTimeSlotsWithTokens(doctor, date);
 
         // 2. Get all active (non-cancelled) appointments for this doctor on this date
         List<Appointment> bookedAppointments = appointmentRepository
@@ -121,13 +125,12 @@ public class AppointmentTokenService {
      * @param doctor The doctor
      * @param date The appointment date
      * @param time The appointment time
-     * @param durationMinutes Duration of each appointment slot
      * @return Token number for this slot
      * @throws BadRequestException if the time slot is not valid
      */
     @Transactional(readOnly = true)
-    public Integer getTokenNumberForTimeSlot(User doctor, LocalDate date, LocalTime time, int durationMinutes) {
-        Map<LocalTime, Integer> allSlots = generateTimeSlotsWithTokens(doctor, date, durationMinutes);
+    public Integer getTokenNumberForTimeSlot(User doctor, LocalDate date, LocalTime time) {
+        Map<LocalTime, Integer> allSlots = generateTimeSlotsWithTokens(doctor, date);
 
         Integer tokenNumber = allSlots.get(time);
         if (tokenNumber == null) {
@@ -181,13 +184,13 @@ public class AppointmentTokenService {
      * @param durationMinutes Duration of the appointment
      */
     @Transactional
-    public void assignTokenToAppointment(Appointment appointment, int durationMinutes) {
+    public void assignTokenToAppointment(Appointment appointment) {
         User doctor = appointment.getDoctor();
         LocalDate date = appointment.getAppointmentDate();
         LocalTime time = appointment.getAppointmentTime();
 
         // Get the token number for this time slot
-        Integer tokenNumber = getTokenNumberForTimeSlot(doctor, date, time, durationMinutes);
+        Integer tokenNumber = getTokenNumberForTimeSlot(doctor, date, time);
 
         // Verify the slot is not already booked
         if (!isTimeSlotAvailable(doctor, date, time)) {
