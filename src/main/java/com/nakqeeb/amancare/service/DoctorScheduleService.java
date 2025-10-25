@@ -646,6 +646,70 @@ public class DoctorScheduleService {
         return newSchedules;
     }
 
+    /**
+     * البحث والفلترة في جداول الأطباء
+     */
+    @Transactional(readOnly = true)
+    public List<DoctorSchedule> searchSchedules(
+            Long clinicId,
+            Long doctorId,
+            DayOfWeek dayOfWeek,
+            ScheduleType scheduleType,
+            Boolean isActive,
+            String searchTerm) {
+
+        logger.info("Searching schedules with filters - clinicId: {}, doctorId: {}, dayOfWeek: {}, scheduleType: {}, isActive: {}, searchTerm: {}",
+                clinicId, doctorId, dayOfWeek, scheduleType, isActive, searchTerm);
+
+        List<DoctorSchedule> schedules;
+
+        // Get all schedules for the clinic (or all clinics if clinicId is null)
+        if (clinicId != null) {
+            schedules = scheduleRepository.findByClinicId(clinicId);
+        } else {
+            schedules = scheduleRepository.findAll();
+        }
+
+        // Apply filters using stream
+        return schedules.stream()
+                .filter(schedule -> {
+                    // Filter by doctor ID
+                    if (doctorId != null && !schedule.getDoctor().getId().equals(doctorId)) {
+                        return false;
+                    }
+
+                    // Filter by day of week
+                    if (dayOfWeek != null && !schedule.getDayOfWeek().equals(dayOfWeek)) {
+                        return false;
+                    }
+
+                    // Filter by schedule type
+                    if (scheduleType != null && !schedule.getScheduleType().equals(scheduleType)) {
+                        return false;
+                    }
+
+                    // Filter by active status
+                    if (isActive != null && !schedule.getIsActive().equals(isActive)) {
+                        return false;
+                    }
+
+                    // Filter by search term (doctor name or specialization)
+                    if (searchTerm != null && !searchTerm.trim().isEmpty()) {
+                        String lowerSearchTerm = searchTerm.toLowerCase().trim();
+                        String doctorName = schedule.getDoctor().getFullName().toLowerCase();
+                        String specialization = schedule.getDoctor().getSpecialization() != null
+                                ? schedule.getDoctor().getSpecialization().toLowerCase()
+                                : "";
+
+                        return doctorName.contains(lowerSearchTerm) ||
+                                specialization.contains(lowerSearchTerm);
+                    }
+
+                    return true;
+                })
+                .collect(Collectors.toList());
+    }
+
     // =============================================================================
     // Helper Methods
     // =============================================================================

@@ -9,10 +9,7 @@ import com.nakqeeb.amancare.dto.request.CreateDoctorScheduleRequest;
 import com.nakqeeb.amancare.dto.request.CreateUnavailabilityRequest;
 import com.nakqeeb.amancare.dto.request.UpdateDoctorScheduleRequest;
 import com.nakqeeb.amancare.dto.response.*;
-import com.nakqeeb.amancare.entity.DoctorSchedule;
-import com.nakqeeb.amancare.entity.DoctorUnavailability;
-import com.nakqeeb.amancare.entity.User;
-import com.nakqeeb.amancare.entity.UserRole;
+import com.nakqeeb.amancare.entity.*;
 import com.nakqeeb.amancare.exception.ResourceNotFoundException;
 import com.nakqeeb.amancare.repository.UserRepository;
 import com.nakqeeb.amancare.security.UserPrincipal;
@@ -871,6 +868,70 @@ public class DoctorScheduleController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new ApiResponse<>(false, e.getMessage(), null));
+        }
+    }
+
+    /**
+     * البحث والفلترة في جداول الأطباء
+     */
+    @GetMapping("/search")
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('ADMIN') or hasRole('RECEPTIONIST')")
+    @Operation(
+            summary = "🔍 البحث في جداول الأطباء",
+            description = "البحث والفلترة في جداول عمل الأطباء حسب معايير محددة"
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "تم البحث بنجاح"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "غير مصرح"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "ممنوع - صلاحيات غير كافية")
+    })
+    public ResponseEntity<ApiResponse<List<DoctorScheduleResponse>>> searchSchedules(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Parameter(description = "معرف العيادة (للـ SYSTEM_ADMIN فقط)")
+            @RequestParam(required = false) Long clinicId,
+            @Parameter(description = "معرف الطبيب")
+            @RequestParam(required = false) Long doctorId,
+            @Parameter(description = "يوم الأسبوع")
+            @RequestParam(required = false) DayOfWeek dayOfWeek,
+            @Parameter(description = "نوع الجدول")
+            @RequestParam(required = false) ScheduleType scheduleType,
+            @Parameter(description = "الحالة النشطة")
+            @RequestParam(required = false) Boolean isActive,
+            @Parameter(description = "البحث النصي (اسم الطبيب أو التخصص)")
+            @RequestParam(required = false) String searchTerm) {
+        try {
+            // For READ operations, SYSTEM_ADMIN doesn't need context
+            Long effectiveClinicId;
+            if (UserRole.SYSTEM_ADMIN.name().equals(currentUser.getRole())) {
+                // SYSTEM_ADMIN can specify clinic or get all
+                effectiveClinicId = clinicId; // Can be null to get all clinics
+                logger.info("SYSTEM_ADMIN searching schedules from clinic: {}",
+                        clinicId != null ? clinicId : "ALL");
+            } else {
+                // Other users can only see their clinic
+                effectiveClinicId = currentUser.getClinicId();
+            }
+
+            List<DoctorSchedule> schedules = scheduleService.searchSchedules(
+                    effectiveClinicId,
+                    doctorId,
+                    dayOfWeek,
+                    scheduleType,
+                    isActive,
+                    searchTerm
+            );
+
+            List<DoctorScheduleResponse> responses = schedules.stream()
+                    .map(DoctorScheduleResponse::fromEntity)
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(
+                    new ApiResponse<>(true, "تم البحث في الجداول بنجاح", responses)
+            );
+        } catch (Exception e) {
+            logger.error("Error searching schedules: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse<>(false, "فشل في البحث عن الجداول: " + e.getMessage(), null));
         }
     }
 }
